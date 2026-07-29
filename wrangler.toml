@@ -1,6 +1,7 @@
 name = "np-track-api"
 main = "worker.js"
 compatibility_date = "2026-07-29"
+compatibility_flags = [ "nodejs_compat" ]
 
 [[kv_namespaces]]
 binding = "PSN_CACHE"
@@ -9,3 +10,7 @@ id = "4b040813120e4321a63f6cb73c9e5e10"
 [vars]
 ALLOWED_ORIGIN = "https://ujicos.github.io"
 CACHE_TTL_SECONDS = "900"
+
+[observability]
+enabled = true
+head_sampling_rate = 1

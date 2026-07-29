@@ -11,13 +11,14 @@
         theme: {
           extend: {
             colors: {
-              ink: "#070a12",
-              panel: "#111827",
-              electric: "#6d5dfc",
-              cyan: "#20d9ff",
+              ink: "#070b14",
+              panel: "#0d1728",
+              electric: "#0070d1",
+              cyan: "#2d9cff",
+              psdeep: "#003791",
             },
             boxShadow: {
-              glow: "0 0 40px rgba(109, 93, 252, .22)",
+              glow: "0 0 48px rgba(0, 112, 209, .24)",
             },
           },
         },
@@ -26,87 +27,68 @@
     <style>
       body {
         background:
-          radial-gradient(circle at 10% 0%, rgba(109, 93, 252, .18), transparent 32rem),
-          radial-gradient(circle at 90% 10%, rgba(32, 217, 255, .1), transparent 28rem),
-          #070a12;
+          radial-gradient(circle at 12% 0%, rgba(0, 55, 145, .42), transparent 34rem),
+          radial-gradient(circle at 88% 8%, rgba(0, 112, 209, .18), transparent 30rem),
+          #070b14;
       }
-      .glass { background: rgba(17, 24, 39, .72); backdrop-filter: blur(18px); }
+      .glass { background: rgba(13, 23, 40, .78); backdrop-filter: blur(18px); }
       .game-card { transition: transform .2s ease, border-color .2s ease; }
-      .game-card:hover { transform: translateY(-3px); border-color: rgba(32, 217, 255, .4); }
+      .game-card:hover { transform: translateY(-3px); border-color: rgba(45, 156, 255, .5); }
       .skeleton { animation: pulse 1.5s ease-in-out infinite; }
       @keyframes pulse { 50% { opacity: .45; } }
     </style>
   </head>
   <body class="min-h-screen text-slate-100 antialiased">
-    <header class="border-b border-white/10">
+    <header class="border-b border-white/10 bg-ink/70 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-        <a href="./" class="flex items-center gap-3 font-black tracking-tight">
-          <span class="grid h-10 w-10 place-items-center rounded-xl bg-electric shadow-glow">P</span>
-          <span>np-<span class="text-cyan">track</span></span>
+        <a href="./" class="text-xl font-black tracking-[-.04em]" aria-label="np-track home">
+          np<span class="text-cyan">-track</span>
         </a>
-        <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Independent PSN tracker</span>
+        <nav class="flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
+          <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">Search</a>
+          <a href="./about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">About</a>
+        </nav>
       </div>
     </header>
 
-    <main class="mx-auto max-w-7xl px-5 py-12">
+    <main class="mx-auto max-w-7xl px-5 py-12 sm:py-20">
       <section class="mx-auto max-w-4xl text-center">
-        <p class="mb-3 text-sm font-bold uppercase tracking-[.25em] text-cyan">Your PlayStation story, in focus</p>
-        <h1 class="text-4xl font-black tracking-tight sm:text-6xl">More than hours played.</h1>
+        <p class="mb-3 text-sm font-bold uppercase tracking-[.25em] text-cyan">Profile intelligence</p>
+        <h1 class="text-4xl font-black tracking-tight sm:text-6xl">See the shape of your play.</h1>
         <p class="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">
-          Turn a public PSN profile into a clear snapshot of the games, habits,
-          milestones, and late-night sessions behind it.
+          Enter a PSN online ID to turn the visible signals behind a profile into one focused view.
         </p>
-        <form id="player-form" class="glass mt-8 flex gap-2 rounded-2xl border border-white/10 p-2 shadow-glow">
-          <label for="psn-id" class="sr-only">PSN online ID</label>
-          <input id="psn-id" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
-            class="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none placeholder:text-slate-600"
-            placeholder="Enter a PSN online ID" autocomplete="off" />
-          <button class="rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-violet-500 disabled:opacity-50" type="submit">Explore</button>
+
+        <form id="player-form" class="glass mt-8 rounded-2xl border border-white/10 p-2 shadow-glow">
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <label for="psn-id" class="sr-only">PSN online ID</label>
+            <input id="psn-id" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
+              class="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none placeholder:text-slate-600"
+              placeholder="Enter a PSN online ID" autocomplete="off" />
+            <button class="rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-cyan hover:text-ink disabled:opacity-50" type="submit">Explore</button>
+          </div>
+
+          <div class="border-t border-white/10 px-3 pb-2 pt-4 text-left">
+            <label class="inline-flex cursor-pointer items-center gap-3 text-sm text-slate-400">
+              <input id="use-npsso" type="checkbox" class="h-4 w-4 rounded border-white/20 bg-panel accent-electric"
+                aria-controls="npsso-fields" aria-expanded="false" />
+              <span>Use a temporary NPSSO override</span>
+            </label>
+            <div id="npsso-fields" class="mt-4 hidden">
+              <label for="npsso-secret" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300">NPSSO secret</label>
+              <input id="npsso-secret" type="password" autocomplete="off" spellcheck="false"
+                class="w-full rounded-xl border border-white/10 bg-ink/70 px-4 py-3 font-mono text-sm outline-none focus:border-cyan"
+                placeholder="Paste the complete NPSSO value" />
+              <p class="mt-2 text-xs leading-relaxed text-amber-200/80">
+                Treat this like a password. It is sent to the configured Worker for this request only and is never saved or cached by np-track.
+              </p>
+            </div>
+          </div>
         </form>
         <p id="message" class="mt-4 min-h-6 text-sm text-slate-400" role="status" aria-live="polite"></p>
-      </section>
-
-      <section id="discovery" class="mt-16">
-        <div class="mx-auto max-w-3xl text-center">
-          <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">One search, a much bigger picture</p>
-          <h2 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">See how a library became a legacy.</h2>
-          <p class="mx-auto mt-4 max-w-2xl text-slate-400">
-            np-track brings scattered profile signals together and lets the interesting
-            patterns surface naturally.
-          </p>
-        </div>
-        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <article class="glass rounded-2xl border border-white/10 p-6">
-            <span class="text-2xl">◉</span>
-            <h3 class="mt-4 text-lg font-bold">Right now</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">Presence, platform, and the current game when PSN privacy settings make them visible.</p>
-          </article>
-          <article class="glass rounded-2xl border border-white/10 p-6">
-            <span class="text-2xl">◷</span>
-            <h3 class="mt-4 text-lg font-bold">Time, put in context</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">Total playtime, first and last played dates, and play counts across the visible library.</p>
-          </article>
-          <article class="glass rounded-2xl border border-white/10 p-6">
-            <span class="text-2xl">↗</span>
-            <h3 class="mt-4 text-lg font-bold">The games that won</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">A visual top ten reveals the titles that claimed the largest share of the journey.</p>
-          </article>
-          <article class="glass rounded-2xl border border-white/10 p-6">
-            <span class="text-2xl">◇</span>
-            <h3 class="mt-4 text-lg font-bold">Trophy momentum</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">See overall trophy totals and game-level completion progress alongside playtime.</p>
-          </article>
-          <article class="glass rounded-2xl border border-white/10 p-6">
-            <span class="text-2xl">⌕</span>
-            <h3 class="mt-4 text-lg font-bold">A library you can explore</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">Search instantly, then reorder the collection by time, recency, or title.</p>
-          </article>
-          <article class="glass rounded-2xl border border-white/10 p-6">
-            <span class="text-2xl">⌁</span>
-            <h3 class="mt-4 text-lg font-bold">Built around privacy</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">Only information PSN allows the profile to share is displayed—nothing is guessed.</p>
-          </article>
-        </div>
+        <a href="./about/" class="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-cyan transition hover:text-white">
+          What can np-track reveal? <span aria-hidden="true">→</span>
+        </a>
       </section>
 
       <div id="results" class="mt-12 hidden">
@@ -126,7 +108,7 @@
                 <p id="presence-note" class="mt-1 max-w-xl text-xs text-slate-500"></p>
               </div>
             </div>
-            <div id="current-game" class="hidden rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4"></div>
+            <div id="current-game" class="hidden rounded-2xl border border-cyan/20 bg-electric/10 p-4"></div>
           </div>
         </section>
 

@@ -45,22 +45,44 @@ export default {
         return json({ error: "Invalid PSN online ID." }, 400, cors);
       }
 
+      const npssoOverride =
+        request.headers.get("X-NPSSO-Override")?.trim() || "";
+      if (npssoOverride && !/^[A-Za-z0-9_-]{32,256}$/.test(npssoOverride)) {
+        return json({ error: "The temporary NPSSO value is invalid." }, 400, cors);
+      }
+
       const refresh = url.searchParams.get("refresh") === "1";
       const cacheKey = `player:v1:${onlineId.toLowerCase()}`;
-      if (!refresh) {
+      if (!refresh && !npssoOverride) {
         const cached = await env.PSN_CACHE.get(cacheKey, "json");
         if (cached) {
           return json({ ...cached, meta: { ...cached.meta, cache: "HIT" } }, 200, cors);
         }
       }
 
-      const data = await buildPlayerResponse(onlineId, env);
-      const ttl = Math.max(60, Number(env.CACHE_TTL_SECONDS) || DEFAULT_TTL);
-      ctx.waitUntil(
-        env.PSN_CACHE.put(cacheKey, JSON.stringify(data), { expirationTtl: ttl }),
+      const data = await buildPlayerResponse(
+        onlineId,
+        npssoOverride || env.NPSSO,
       );
+      const ttl = Math.max(60, Number(env.CACHE_TTL_SECONDS) || DEFAULT_TTL);
+      if (!npssoOverride) {
+        ctx.waitUntil(
+          env.PSN_CACHE.put(cacheKey, JSON.stringify(data), { expirationTtl: ttl }),
+        );
+      }
 
-      return json({ ...data, meta: { ...data.meta, cache: "MISS", ttl } }, 200, cors);
+      return json(
+        {
+          ...data,
+          meta: {
+            ...data.meta,
+            cache: npssoOverride ? "BYPASS" : "MISS",
+            ttl: npssoOverride ? null : ttl,
+          },
+        },
+        200,
+        cors,
+      );
     } catch (error) {
       const message = safeErrorMessage(error);
       const status = /not found|privacy|private/i.test(message) ? 404 : 502;
@@ -69,12 +91,12 @@ export default {
   },
 };
 
-async function buildPlayerResponse(onlineId, env) {
-  if (!env.NPSSO) {
+async function buildPlayerResponse(onlineId, npsso) {
+  if (!npsso) {
     throw new Error("The NPSSO Worker secret is missing.");
   }
 
-  const accessCode = await exchangeNpssoForAccessCode(env.NPSSO);
+  const accessCode = await exchangeNpssoForAccessCode(npsso);
   const auth = await exchangeAccessCodeForAuthTokens(accessCode);
   const authorization = { accessToken: auth.accessToken };
   const accountId = await resolveExactAccountId(authorization, onlineId);
@@ -291,7 +313,7 @@ function corsHeaders(origin, configuredOrigin = "") {
   return {
     "access-control-allow-origin": allowOrigin,
     "access-control-allow-methods": "GET, HEAD, OPTIONS",
-    "access-control-allow-headers": "Content-Type",
+    "access-control-allow-headers": "Content-Type, X-NPSSO-Override",
     "access-control-max-age": "86400",
     vary: "Origin",
   };
@@ -307,7 +329,7 @@ function json(body, status, extraHeaders) {
 function safeErrorMessage(error) {
   const message = error instanceof Error ? error.message : String(error);
   if (/npsso|access code/i.test(message)) {
-    return "PSN authentication failed. Update the NPSSO secret in Cloudflare.";
+    return "PSN authentication failed. The configured or temporary NPSSO value may be expired.";
   }
   return message.slice(0, 300);
 }

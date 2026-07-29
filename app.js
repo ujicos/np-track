@@ -6,7 +6,9 @@ const elements = {
   form: document.querySelector("#player-form"),
   input: document.querySelector("#psn-id"),
   message: document.querySelector("#message"),
-  discovery: document.querySelector("#discovery"),
+  useNpsso: document.querySelector("#use-npsso"),
+  npssoFields: document.querySelector("#npsso-fields"),
+  npssoSecret: document.querySelector("#npsso-secret"),
   results: document.querySelector("#results"),
   avatar: document.querySelector("#avatar"),
   onlineId: document.querySelector("#online-id"),
@@ -28,6 +30,14 @@ elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   await loadPlayer(elements.input.value.trim());
 });
+elements.useNpsso.addEventListener("change", () => {
+  const enabled = elements.useNpsso.checked;
+  elements.npssoFields.classList.toggle("hidden", !enabled);
+  elements.npssoSecret.required = enabled;
+  elements.useNpsso.setAttribute("aria-expanded", String(enabled));
+  if (enabled) elements.npssoSecret.focus();
+  if (!enabled) elements.npssoSecret.value = "";
+});
 elements.gameSearch.addEventListener("input", (event) => {
   state.query = event.target.value.trim().toLocaleLowerCase("en");
   state.visible = PAGE_SIZE;
@@ -44,12 +54,27 @@ elements.showMore.addEventListener("click", () => {
 });
 
 async function loadPlayer(onlineId) {
+  const npssoOverride = elements.useNpsso.checked
+    ? elements.npssoSecret.value.trim()
+    : "";
+  if (elements.useNpsso.checked && !npssoOverride) {
+    elements.message.textContent = "Paste an NPSSO value or turn off the temporary override.";
+    elements.message.className = "mt-4 min-h-6 text-sm text-rose-400";
+    elements.npssoSecret.focus();
+    return;
+  }
+
   setLoading(true, "Reading the PlayStation story …");
   elements.results.classList.add("hidden");
 
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
+      {
+        headers: npssoOverride
+          ? { "X-NPSSO-Override": npssoOverride }
+          : {},
+      },
     );
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not load this profile.");
@@ -61,11 +86,13 @@ async function loadPlayer(onlineId) {
     renderTopGames();
     renderGames();
     elements.results.classList.remove("hidden");
-    elements.discovery.classList.add("hidden");
     elements.message.textContent =
-      data.meta.cache === "HIT"
+      data.meta.cache === "BYPASS"
+        ? `Updated ${formatDate(data.meta.fetchedAt)} with the temporary override. Nothing was cached.`
+        : data.meta.cache === "HIT"
         ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
         : `Updated ${formatDate(data.meta.fetchedAt)}.`;
+    if (npssoOverride) elements.npssoSecret.value = "";
     history.replaceState(null, "", `?player=${encodeURIComponent(data.player.onlineId)}`);
   } catch (error) {
     elements.message.textContent = error.message;
@@ -163,7 +190,7 @@ function renderTopGames() {
 
 function renderGames() {
   const filtered = state.games.filter((game) =>
-    game.name.toLocaleLowerCase("nb").includes(state.query),
+    game.name.toLocaleLowerCase("en").includes(state.query),
   );
   filtered.sort((a, b) => {
     if (state.sort === "recent") {
@@ -241,7 +268,7 @@ function node(tag, className, text = "") {
 
 function avatarFallback(name) {
   const letter = encodeURIComponent((name || "P")[0].toUpperCase());
-  return `https://placehold.co/160x160/111827/20d9ff?text=${letter}`;
+  return `https://placehold.co/160x160/0d1728/2d9cff?text=${letter}`;
 }
 
 const initialPlayer = new URLSearchParams(location.search).get("player");
