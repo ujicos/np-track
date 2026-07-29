@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Se spilletid, spillhistorikk og trofeer for PlayStation-brukere." />
+    <title>PSNtracker – PlayStation-spilletid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: "#070a12",
+              panel: "#111827",
+              electric: "#6d5dfc",
+              cyan: "#20d9ff",
+            },
+            boxShadow: {
+              glow: "0 0 40px rgba(109, 93, 252, .22)",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background:
+          radial-gradient(circle at 10% 0%, rgba(109, 93, 252, .18), transparent 32rem),
+          radial-gradient(circle at 90% 10%, rgba(32, 217, 255, .1), transparent 28rem),
+          #070a12;
+      }
+      .glass { background: rgba(17, 24, 39, .72); backdrop-filter: blur(18px); }
+      .game-card { transition: transform .2s ease, border-color .2s ease; }
+      .game-card:hover { transform: translateY(-3px); border-color: rgba(32, 217, 255, .4); }
+      .skeleton { animation: pulse 1.5s ease-in-out infinite; }
+      @keyframes pulse { 50% { opacity: .45; } }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-100 antialiased">
+    <header class="border-b border-white/10">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
+        <a href="./" class="flex items-center gap-3 font-black tracking-tight">
+          <span class="grid h-10 w-10 place-items-center rounded-xl bg-electric shadow-glow">P</span>
+          <span>PSN<span class="text-cyan">tracker</span></span>
+        </a>
+        <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Uoffisiell PSN-klient</span>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-5 py-12">
+      <section class="mx-auto max-w-3xl text-center">
+        <p class="mb-3 text-sm font-bold uppercase tracking-[.25em] text-cyan">Spillhistorikken din, samlet</p>
+        <h1 class="text-4xl font-black tracking-tight sm:text-6xl">Hvor ble tiden av?</h1>
+        <p class="mx-auto mt-5 max-w-2xl text-slate-400">Søk etter en offentlig PSN-profil og se spilletid, aktivitet og troféfremdrift.</p>
+        <form id="player-form" class="glass mt-8 flex gap-2 rounded-2xl border border-white/10 p-2 shadow-glow">
+          <label for="psn-id" class="sr-only">PSN-ID</label>
+          <input id="psn-id" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
+            class="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none placeholder:text-slate-600"
+            placeholder="Skriv inn PSN-ID" autocomplete="off" />
+          <button class="rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-violet-500 disabled:opacity-50" type="submit">Søk</button>
+        </form>
+        <p id="message" class="mt-4 min-h-6 text-sm text-slate-400" role="status" aria-live="polite"></p>
+      </section>
+
+      <div id="results" class="mt-12 hidden">
+        <section class="glass overflow-hidden rounded-3xl border border-white/10 p-6 sm:p-8">
+          <div class="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+            <div class="flex items-center gap-5">
+              <img id="avatar" class="h-20 w-20 rounded-2xl bg-slate-800 object-cover" alt="" />
+              <div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <h2 id="online-id" class="text-3xl font-black"></h2>
+                  <span id="plus-badge" class="hidden rounded-full bg-yellow-400/15 px-2 py-1 text-xs font-bold text-yellow-300">PS Plus</span>
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                  <span id="status-dot" class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
+                  <span id="presence-label" class="text-sm text-slate-300"></span>
+                </div>
+                <p id="presence-note" class="mt-1 max-w-xl text-xs text-slate-500"></p>
+              </div>
+            </div>
+            <div id="current-game" class="hidden rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4"></div>
+          </div>
+        </section>
+
+        <section id="stats" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"></section>
+
+        <section class="mt-12">
+          <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Hall of fame</p>
+              <h2 class="mt-1 text-3xl font-black">Topp 10</h2>
+            </div>
+            <p class="text-sm text-slate-500">Basert på registrert spilletid</p>
+          </div>
+          <div id="top-games" class="mt-5 grid gap-3 lg:grid-cols-2"></div>
+        </section>
+
+        <section class="mt-12">
+          <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+            <div>
+              <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Bibliotek</p>
+              <h2 class="mt-1 text-3xl font-black">Alle spill</h2>
+            </div>
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <input id="game-search" type="search" placeholder="Søk i spill..."
+                class="rounded-xl border border-white/10 bg-panel px-4 py-2.5 outline-none focus:border-cyan" />
+              <select id="game-sort" class="rounded-xl border border-white/10 bg-panel px-4 py-2.5 outline-none">
+                <option value="hours">Flest timer</option>
+                <option value="recent">Nylig spilt</option>
+                <option value="alpha">Alfabetisk</option>
+              </select>
+            </div>
+          </div>
+          <p id="game-count" class="mt-4 text-sm text-slate-500"></p>
+          <div id="games" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+          <div class="mt-8 text-center">
+            <button id="show-more" class="hidden rounded-xl border border-white/10 px-5 py-3 font-bold hover:border-cyan">Vis flere</button>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs text-slate-600">
+      Ikke tilknyttet Sony Interactive Entertainment. Data avhenger av brukerens PSN-personvern.
+    </footer>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
