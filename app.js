@@ -6,6 +6,7 @@ const elements = {
   form: document.querySelector("#player-form"),
   input: document.querySelector("#psn-id"),
   message: document.querySelector("#message"),
+  discovery: document.querySelector("#discovery"),
   results: document.querySelector("#results"),
   avatar: document.querySelector("#avatar"),
   onlineId: document.querySelector("#online-id"),
@@ -28,7 +29,7 @@ elements.form.addEventListener("submit", async (event) => {
   await loadPlayer(elements.input.value.trim());
 });
 elements.gameSearch.addEventListener("input", (event) => {
-  state.query = event.target.value.trim().toLocaleLowerCase("nb");
+  state.query = event.target.value.trim().toLocaleLowerCase("en");
   state.visible = PAGE_SIZE;
   renderGames();
 });
@@ -43,7 +44,7 @@ elements.showMore.addEventListener("click", () => {
 });
 
 async function loadPlayer(onlineId) {
-  setLoading(true, "Henter data fra PlayStation Network …");
+  setLoading(true, "Reading the PlayStation story …");
   elements.results.classList.add("hidden");
 
   try {
@@ -51,7 +52,7 @@ async function loadPlayer(onlineId) {
       `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
     );
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Kunne ikke hente profilen.");
+    if (!response.ok) throw new Error(data.error || "Could not load this profile.");
 
     state.games = data.games || [];
     state.visible = PAGE_SIZE;
@@ -60,10 +61,11 @@ async function loadPlayer(onlineId) {
     renderTopGames();
     renderGames();
     elements.results.classList.remove("hidden");
+    elements.discovery.classList.add("hidden");
     elements.message.textContent =
       data.meta.cache === "HIT"
-        ? `Viser hurtiglagret data fra ${formatDate(data.meta.fetchedAt)}.`
-        : `Oppdatert ${formatDate(data.meta.fetchedAt)}.`;
+        ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
+        : `Updated ${formatDate(data.meta.fetchedAt)}.`;
     history.replaceState(null, "", `?player=${encodeURIComponent(data.player.onlineId)}`);
   } catch (error) {
     elements.message.textContent = error.message;
@@ -76,15 +78,15 @@ async function loadPlayer(onlineId) {
 function renderProfile(data) {
   const { player, presence } = data;
   elements.avatar.src = player.avatarUrl || avatarFallback(player.onlineId);
-  elements.avatar.alt = `Profilbilde for ${player.onlineId}`;
+  elements.avatar.alt = `Profile picture for ${player.onlineId}`;
   elements.onlineId.textContent = player.onlineId;
   elements.plusBadge.classList.toggle("hidden", !player.isPlus);
 
   const labels = {
-    playing: `Spiller nå på ${presence.platform || "PlayStation"}`,
-    online: `Online på ${presence.platform || "PlayStation"}`,
+    playing: `Playing now on ${presence.platform || "PlayStation"}`,
+    online: `Online on ${presence.platform || "PlayStation"}`,
     offline: "Offline",
-    unknown: "Status ukjent eller skjult",
+    unknown: "Status unavailable or hidden",
   };
   elements.presenceLabel.textContent = labels[presence.status] || labels.unknown;
   elements.presenceNote.textContent = presence.note || "";
@@ -96,7 +98,7 @@ function renderProfile(data) {
   elements.currentGame.classList.toggle("hidden", !game);
   if (game) {
     elements.currentGame.replaceChildren(
-      node("p", "text-xs font-bold uppercase tracking-wider text-emerald-300", "Spiller nå"),
+      node("p", "text-xs font-bold uppercase tracking-wider text-emerald-300", "Playing now"),
       node("p", "mt-1 font-bold", game.name),
       node("p", "mt-1 text-xs text-slate-400", game.platform || ""),
     );
@@ -110,10 +112,10 @@ function renderStats(stats) {
     ? Object.values(earned).reduce((sum, value) => sum + Number(value || 0), 0)
     : null;
   const cards = [
-    ["Total spilletid", formatDuration(stats.totalPlayTimeSeconds), "Registrert av PSN"],
-    ["Spill spilt", formatNumber(stats.totalGames), "Synlig spillhistorikk"],
-    ["Troféspill", formatNumber(stats.trophyGames), "Spill med trofésett"],
-    ["Trofeer", trophyTotal === null ? "Skjult" : formatNumber(trophyTotal), "Alle grader"],
+    ["Total playtime", formatDuration(stats.totalPlayTimeSeconds), "Recorded by PSN"],
+    ["Games played", formatNumber(stats.totalGames), "Visible game history"],
+    ["Trophy games", formatNumber(stats.trophyGames), "Games with trophy sets"],
+    ["Trophies", trophyTotal === null ? "Hidden" : formatNumber(trophyTotal), "All grades"],
   ];
   elements.stats.replaceChildren(
     ...cards.map(([label, value, detail]) => {
@@ -167,12 +169,12 @@ function renderGames() {
     if (state.sort === "recent") {
       return new Date(b.lastPlayedAt || 0) - new Date(a.lastPlayedAt || 0);
     }
-    if (state.sort === "alpha") return a.name.localeCompare(b.name, "nb");
+    if (state.sort === "alpha") return a.name.localeCompare(b.name, "en");
     return b.playTimeSeconds - a.playTimeSeconds;
   });
 
   const visible = filtered.slice(0, state.visible);
-  elements.gameCount.textContent = `${formatNumber(filtered.length)} av ${formatNumber(state.games.length)} spill`;
+  elements.gameCount.textContent = `${formatNumber(filtered.length)} of ${formatNumber(state.games.length)} games`;
   elements.games.replaceChildren(...visible.map(gameCard));
   elements.showMore.classList.toggle("hidden", visible.length >= filtered.length);
 }
@@ -182,7 +184,7 @@ function gameCard(game) {
   const image = document.createElement("img");
   image.className = "aspect-video w-full bg-slate-800 object-cover";
   image.src = game.screenshotUrl || game.imageUrl;
-  image.alt = `Omslag for ${game.name}`;
+  image.alt = `Cover art for ${game.name}`;
   image.loading = "lazy";
   const body = node("div", "p-5");
   body.append(
@@ -193,11 +195,11 @@ function gameCard(game) {
   const played = node("div");
   played.append(
     node("p", "text-xl font-black", formatDuration(game.playTimeSeconds)),
-    node("p", "text-xs text-slate-500", `Sist spilt ${formatDate(game.lastPlayedAt)}`),
+    node("p", "text-xs text-slate-500", `Last played ${formatDate(game.lastPlayedAt)}`),
   );
   const trophy = game.trophies
-    ? node("span", "rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300", `${game.trophies.progress}% trofeer`)
-    : node("span", "text-xs text-slate-600", "Ingen trofédata");
+    ? node("span", "rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300", `${game.trophies.progress}% trophies`)
+    : node("span", "text-xs text-slate-600", "No trophy data");
   details.append(played, trophy);
   body.append(details);
   card.append(image, body);
@@ -207,7 +209,7 @@ function gameCard(game) {
 function setLoading(loading, message = "") {
   const button = elements.form.querySelector("button");
   button.disabled = loading;
-  button.textContent = loading ? "Henter …" : "Søk";
+  button.textContent = loading ? "Exploring …" : "Explore";
   if (message) {
     elements.message.textContent = message;
     elements.message.className = "mt-4 min-h-6 text-sm text-slate-400";
@@ -216,18 +218,18 @@ function setLoading(loading, message = "") {
 
 function formatDuration(seconds) {
   const hours = seconds / 3600;
-  if (hours >= 1000) return `${formatNumber(Math.round(hours))} t`;
-  if (hours >= 1) return `${hours.toLocaleString("nb-NO", { maximumFractionDigits: 1 })} t`;
+  if (hours >= 1000) return `${formatNumber(Math.round(hours))} hrs`;
+  if (hours >= 1) return `${hours.toLocaleString("en-US", { maximumFractionDigits: 1 })} hrs`;
   return `${Math.round(seconds / 60)} min`;
 }
 
 function formatDate(value) {
-  if (!value) return "ukjent";
-  return new Intl.DateTimeFormat("nb-NO", { dateStyle: "medium" }).format(new Date(value));
+  if (!value) return "unknown";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
 }
 
 function formatNumber(value) {
-  return new Intl.NumberFormat("nb-NO").format(value || 0);
+  return new Intl.NumberFormat("en-US").format(value || 0);
 }
 
 function node(tag, className, text = "") {

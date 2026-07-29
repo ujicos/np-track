@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="no">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Se spilletid, spillhistorikk og trofeer for PlayStation-brukere." />
-    <title>np-track – PlayStation-spilletid</title>
+    <meta name="description" content="Explore PlayStation playtime, activity, game history, rankings, and trophy progress." />
+    <title>np-track — Your PlayStation history, decoded</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -44,23 +44,69 @@
           <span class="grid h-10 w-10 place-items-center rounded-xl bg-electric shadow-glow">P</span>
           <span>np-<span class="text-cyan">track</span></span>
         </a>
-        <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Uoffisiell PSN-klient</span>
+        <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Independent PSN tracker</span>
       </div>
     </header>
 
     <main class="mx-auto max-w-7xl px-5 py-12">
-      <section class="mx-auto max-w-3xl text-center">
-        <p class="mb-3 text-sm font-bold uppercase tracking-[.25em] text-cyan">Spillhistorikken din, samlet</p>
-        <h1 class="text-4xl font-black tracking-tight sm:text-6xl">Hvor ble tiden av?</h1>
-        <p class="mx-auto mt-5 max-w-2xl text-slate-400">Søk etter en offentlig PSN-profil og se spilletid, aktivitet og troféfremdrift.</p>
+      <section class="mx-auto max-w-4xl text-center">
+        <p class="mb-3 text-sm font-bold uppercase tracking-[.25em] text-cyan">Your PlayStation story, in focus</p>
+        <h1 class="text-4xl font-black tracking-tight sm:text-6xl">More than hours played.</h1>
+        <p class="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">
+          Turn a public PSN profile into a clear snapshot of the games, habits,
+          milestones, and late-night sessions behind it.
+        </p>
         <form id="player-form" class="glass mt-8 flex gap-2 rounded-2xl border border-white/10 p-2 shadow-glow">
-          <label for="psn-id" class="sr-only">PSN-ID</label>
+          <label for="psn-id" class="sr-only">PSN online ID</label>
           <input id="psn-id" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
             class="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none placeholder:text-slate-600"
-            placeholder="Skriv inn PSN-ID" autocomplete="off" />
-          <button class="rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-violet-500 disabled:opacity-50" type="submit">Søk</button>
+            placeholder="Enter a PSN online ID" autocomplete="off" />
+          <button class="rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-violet-500 disabled:opacity-50" type="submit">Explore</button>
         </form>
         <p id="message" class="mt-4 min-h-6 text-sm text-slate-400" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="discovery" class="mt-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">One search, a much bigger picture</p>
+          <h2 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">See how a library became a legacy.</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-slate-400">
+            np-track brings scattered profile signals together and lets the interesting
+            patterns surface naturally.
+          </p>
+        </div>
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <article class="glass rounded-2xl border border-white/10 p-6">
+            <span class="text-2xl">◉</span>
+            <h3 class="mt-4 text-lg font-bold">Right now</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">Presence, platform, and the current game when PSN privacy settings make them visible.</p>
+          </article>
+          <article class="glass rounded-2xl border border-white/10 p-6">
+            <span class="text-2xl">◷</span>
+            <h3 class="mt-4 text-lg font-bold">Time, put in context</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">Total playtime, first and last played dates, and play counts across the visible library.</p>
+          </article>
+          <article class="glass rounded-2xl border border-white/10 p-6">
+            <span class="text-2xl">↗</span>
+            <h3 class="mt-4 text-lg font-bold">The games that won</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">A visual top ten reveals the titles that claimed the largest share of the journey.</p>
+          </article>
+          <article class="glass rounded-2xl border border-white/10 p-6">
+            <span class="text-2xl">◇</span>
+            <h3 class="mt-4 text-lg font-bold">Trophy momentum</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">See overall trophy totals and game-level completion progress alongside playtime.</p>
+          </article>
+          <article class="glass rounded-2xl border border-white/10 p-6">
+            <span class="text-2xl">⌕</span>
+            <h3 class="mt-4 text-lg font-bold">A library you can explore</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">Search instantly, then reorder the collection by time, recency, or title.</p>
+          </article>
+          <article class="glass rounded-2xl border border-white/10 p-6">
+            <span class="text-2xl">⌁</span>
+            <h3 class="mt-4 text-lg font-bold">Built around privacy</h3>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">Only information PSN allows the profile to share is displayed—nothing is guessed.</p>
+          </article>
+        </div>
       </section>
 
       <div id="results" class="mt-12 hidden">
@@ -90,9 +136,9 @@
           <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Hall of fame</p>
-              <h2 class="mt-1 text-3xl font-black">Topp 10</h2>
+              <h2 class="mt-1 text-3xl font-black">Top 10</h2>
             </div>
-            <p class="text-sm text-slate-500">Basert på registrert spilletid</p>
+            <p class="text-sm text-slate-500">Ranked by recorded playtime</p>
           </div>
           <div id="top-games" class="mt-5 grid gap-3 lg:grid-cols-2"></div>
         </section>
@@ -100,29 +146,30 @@
         <section class="mt-12">
           <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
-              <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Bibliotek</p>
-              <h2 class="mt-1 text-3xl font-black">Alle spill</h2>
+              <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Library</p>
+              <h2 class="mt-1 text-3xl font-black">Every game</h2>
             </div>
             <div class="flex flex-col gap-3 sm:flex-row">
-              <input id="game-search" type="search" placeholder="Søk i spill..."
+              <input id="game-search" type="search" placeholder="Search games..."
                 class="rounded-xl border border-white/10 bg-panel px-4 py-2.5 outline-none focus:border-cyan" />
+              <label for="game-sort" class="sr-only">Sort games</label>
               <select id="game-sort" class="rounded-xl border border-white/10 bg-panel px-4 py-2.5 outline-none">
-                <option value="hours">Flest timer</option>
-                <option value="recent">Nylig spilt</option>
-                <option value="alpha">Alfabetisk</option>
+                <option value="hours">Most played</option>
+                <option value="recent">Recently played</option>
+                <option value="alpha">A–Z</option>
               </select>
             </div>
           </div>
           <p id="game-count" class="mt-4 text-sm text-slate-500"></p>
           <div id="games" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
           <div class="mt-8 text-center">
-            <button id="show-more" class="hidden rounded-xl border border-white/10 px-5 py-3 font-bold hover:border-cyan">Vis flere</button>
+            <button id="show-more" class="hidden rounded-xl border border-white/10 px-5 py-3 font-bold hover:border-cyan">Show more</button>
           </div>
         </section>
       </div>
     </main>
     <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs text-slate-600">
-      Ikke tilknyttet Sony Interactive Entertainment. Data avhenger av brukerens PSN-personvern.
+      Not affiliated with Sony Interactive Entertainment. Available data depends on each profile’s PSN privacy settings.
     </footer>
     <script src="./app.js" defer></script>
   </body>

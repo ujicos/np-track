@@ -23,7 +23,7 @@ export default {
 
     try {
       if (!["GET", "HEAD"].includes(request.method)) {
-        return json({ error: "Metoden støttes ikke." }, 405, cors);
+        return json({ error: "Method not allowed." }, 405, cors);
       }
 
       const url = new URL(request.url);
@@ -34,7 +34,7 @@ export default {
       const match = url.pathname.match(/^\/api\/player\/([^/]+)$/);
       if (!match) {
         return json(
-          { error: "Ikke funnet. Bruk GET /api/player/:onlineId." },
+          { error: "Not found. Use GET /api/player/:onlineId." },
           404,
           cors,
         );
@@ -42,7 +42,7 @@ export default {
 
       const onlineId = decodeURIComponent(match[1]).trim();
       if (!/^[a-zA-Z0-9_-]{3,16}$/.test(onlineId)) {
-        return json({ error: "Ugyldig PSN-ID." }, 400, cors);
+        return json({ error: "Invalid PSN online ID." }, 400, cors);
       }
 
       const refresh = url.searchParams.get("refresh") === "1";
@@ -63,7 +63,7 @@ export default {
       return json({ ...data, meta: { ...data.meta, cache: "MISS", ttl } }, 200, cors);
     } catch (error) {
       const message = safeErrorMessage(error);
-      const status = /not found|ingen eksakt|privacy|private/i.test(message) ? 404 : 502;
+      const status = /not found|privacy|private/i.test(message) ? 404 : 502;
       return json({ error: message }, status, cors);
     }
   },
@@ -71,7 +71,7 @@ export default {
 
 async function buildPlayerResponse(onlineId, env) {
   if (!env.NPSSO) {
-    throw new Error("Worker-secret NPSSO mangler.");
+    throw new Error("The NPSSO Worker secret is missing.");
   }
 
   const accessCode = await exchangeNpssoForAccessCode(env.NPSSO);
@@ -89,7 +89,7 @@ async function buildPlayerResponse(onlineId, env) {
     ]);
 
   if (profileResult.status === "rejected" && gamesResult.status === "rejected") {
-    throw new Error("Profilen eller spillhistorikken er privat eller utilgjengelig.");
+    throw new Error("The profile or game history is private or unavailable.");
   }
 
   const trophyTitles =
@@ -139,7 +139,7 @@ async function buildPlayerResponse(onlineId, env) {
           platform: null,
           lastOnlineAt: null,
           currentGames: [],
-          note: "Status er skjult av personvern eller kunne ikke hentes.",
+          note: "Presence is hidden by privacy settings or could not be retrieved.",
         };
   const profile =
     profileResult.status === "fulfilled" ? profileResult.value : {};
@@ -190,7 +190,7 @@ async function resolveExactAccountId(authorization, onlineId) {
       result.socialMetadata?.onlineId?.toLowerCase() === onlineId.toLowerCase(),
   );
   if (!exact?.socialMetadata?.accountId) {
-    throw new Error(`Fant ingen eksakt PSN-bruker med ID «${onlineId}».`);
+    throw new Error(`No exact PSN account was found for “${onlineId}”.`);
   }
   return exact.socialMetadata.accountId;
 }
@@ -244,7 +244,7 @@ function mapPresence(response) {
     currentGames,
     note: online
       ? null
-      : "PSN avslører ikke om «offline» betyr faktisk offline eller Appearing Offline.",
+      : "PSN does not reveal whether “offline” means truly offline or Appearing Offline.",
   };
 }
 
@@ -270,7 +270,7 @@ function platformLabel(category = "") {
   if (category.includes("ps5")) return "PS5";
   if (category.includes("ps4")) return "PS4";
   if (category.includes("pspc")) return "PC";
-  return "Ukjent";
+  return "Unknown";
 }
 
 function normaliseName(value = "") {
@@ -307,7 +307,7 @@ function json(body, status, extraHeaders) {
 function safeErrorMessage(error) {
   const message = error instanceof Error ? error.message : String(error);
   if (/npsso|access code/i.test(message)) {
-    return "PSN-autentisering feilet. Oppdater NPSSO-secret i Cloudflare.";
+    return "PSN authentication failed. Update the NPSSO secret in Cloudflare.";
   }
   return message.slice(0, 300);
 }
