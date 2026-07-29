@@ -159,11 +159,12 @@ export default {
 };
 
 async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
-  if (!npsso) {
+  const normalisedNpsso = normaliseNpsso(npsso);
+  if (!normalisedNpsso) {
     throw new Error("The NPSSO Worker secret is missing.");
   }
 
-  const accessCode = await exchangeNpssoForAccessCode(npsso);
+  const accessCode = await exchangeNpssoForAccessCode(normalisedNpsso);
   const auth = await exchangeAccessCodeForAuthTokens(accessCode);
   const authorization = { accessToken: auth.accessToken };
   const accountId = await resolveAccountId(
@@ -282,11 +283,12 @@ async function buildTrophyResponse(
   npsso,
   legacyOnlineId = "",
 ) {
-  if (!npsso) {
+  const normalisedNpsso = normaliseNpsso(npsso);
+  if (!normalisedNpsso) {
     throw new Error("The NPSSO Worker secret is missing.");
   }
 
-  const accessCode = await exchangeNpssoForAccessCode(npsso);
+  const accessCode = await exchangeNpssoForAccessCode(normalisedNpsso);
   const auth = await exchangeAccessCodeForAuthTokens(accessCode);
   const authorization = { accessToken: auth.accessToken };
   const accountId = await resolveAccountId(
