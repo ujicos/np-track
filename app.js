@@ -1,7 +1,18 @@
+import { formatDuration, normaliseNpssoInput } from "./utils.js";
+
 const API_BASE_URL = "https://np-track-api.ujicos.workers.dev";
 const PAGE_SIZE = 24;
+const SETTINGS_KEY = "np-track.settings";
 
-const state = { games: [], visible: PAGE_SIZE, query: "", sort: "hours" };
+const state = {
+  primary: null,
+  comparison: null,
+  games: [],
+  visible: PAGE_SIZE,
+  query: "",
+  sort: "hours",
+};
+
 const elements = {
   form: document.querySelector("#player-form"),
   input: document.querySelector("#psn-id"),
@@ -18,18 +29,37 @@ const elements = {
   presenceNote: document.querySelector("#presence-note"),
   currentGame: document.querySelector("#current-game"),
   stats: document.querySelector("#stats"),
+  comparison: document.querySelector("#comparison"),
+  comparisonCards: document.querySelector("#comparison-cards"),
+  comparisonNote: document.querySelector("#comparison-note"),
+  clearComparison: document.querySelector("#clear-comparison"),
   topGames: document.querySelector("#top-games"),
   gameSearch: document.querySelector("#game-search"),
   gameSort: document.querySelector("#game-sort"),
   gameCount: document.querySelector("#game-count"),
   games: document.querySelector("#games"),
   showMore: document.querySelector("#show-more"),
+  openSettings: document.querySelector("#open-settings"),
+  settingsDialog: document.querySelector("#settings-dialog"),
+  settingsForm: document.querySelector("#settings-form"),
+  closeSettings: document.querySelector("#close-settings"),
+  cancelSettings: document.querySelector("#cancel-settings"),
+  defaultPsn: document.querySelector("#default-psn"),
+  autoLoadDefault: document.querySelector("#auto-load-default"),
+  settingsMessage: document.querySelector("#settings-message"),
 };
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await loadPlayer(elements.input.value.trim());
+  const requestedId = elements.input.value.trim();
+  const mode =
+    state.primary &&
+    state.primary.player.onlineId.toLowerCase() !== requestedId.toLowerCase()
+      ? "comparison"
+      : "primary";
+  await loadPlayer(requestedId, mode);
 });
+
 elements.useNpsso.addEventListener("change", () => {
   const enabled = elements.useNpsso.checked;
   elements.npssoFields.classList.toggle("hidden", !enabled);
@@ -38,68 +68,136 @@ elements.useNpsso.addEventListener("change", () => {
   if (enabled) elements.npssoSecret.focus();
   if (!enabled) elements.npssoSecret.value = "";
 });
+
 elements.gameSearch.addEventListener("input", (event) => {
   state.query = event.target.value.trim().toLocaleLowerCase("en");
   state.visible = PAGE_SIZE;
   renderGames();
 });
+
 elements.gameSort.addEventListener("change", (event) => {
   state.sort = event.target.value;
   state.visible = PAGE_SIZE;
   renderGames();
 });
+
 elements.showMore.addEventListener("click", () => {
   state.visible += PAGE_SIZE;
   renderGames();
 });
 
-async function loadPlayer(onlineId) {
+elements.clearComparison.addEventListener("click", () => {
+  state.comparison = null;
+  renderComparison();
+  updateUrl();
+});
+
+elements.openSettings.addEventListener("click", () => {
+  const settings = readSettings();
+  elements.defaultPsn.value = settings.defaultPsn;
+  elements.autoLoadDefault.checked = settings.autoLoad;
+  elements.settingsMessage.textContent = "";
+  elements.settingsDialog.showModal();
+});
+
+elements.closeSettings.addEventListener("click", () => {
+  elements.settingsDialog.close();
+});
+
+elements.cancelSettings.addEventListener("click", () => {
+  elements.settingsDialog.close();
+});
+
+elements.settingsDialog.addEventListener("click", (event) => {
+  if (event.target === elements.settingsDialog) elements.settingsDialog.close();
+});
+
+elements.settingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const defaultPsn = elements.defaultPsn.value.trim();
+  if (defaultPsn && !/^[A-Za-z0-9_-]{3,16}$/.test(defaultPsn)) {
+    elements.settingsMessage.textContent = "Enter a valid PSN online ID.";
+    elements.settingsMessage.className = "mt-3 min-h-5 text-xs text-rose-400";
+    return;
+  }
+
+  const settings = {
+    defaultPsn,
+    autoLoad: Boolean(defaultPsn && elements.autoLoadDefault.checked),
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  elements.settingsDialog.close();
+
+  if (
+    settings.autoLoad &&
+    state.primary?.player.onlineId.toLowerCase() !== defaultPsn.toLowerCase()
+  ) {
+    elements.input.value = defaultPsn;
+    await loadPlayer(defaultPsn, "primary");
+  }
+});
+
+async function loadPlayer(onlineId, mode = "primary") {
   const npssoOverride = elements.useNpsso.checked
-    ? elements.npssoSecret.value.trim()
+    ? normaliseNpssoInput(elements.npssoSecret.value)
     : "";
   if (elements.useNpsso.checked && !npssoOverride) {
-    elements.message.textContent = "Paste an NPSSO value or turn off the temporary override.";
-    elements.message.className = "mt-4 min-h-6 text-sm text-rose-400";
+    setMessage("Paste an NPSSO value or turn off the temporary override.", true);
     elements.npssoSecret.focus();
     return;
   }
 
-  setLoading(true, "Reading the PlayStation story …");
-  elements.results.classList.add("hidden");
+  setLoading(true, mode === "comparison" ? "Building the comparison …" : "Reading the PlayStation story …");
+  if (mode === "primary") elements.results.classList.add("hidden");
 
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
-      {
-        headers: npssoOverride
-          ? { "X-NPSSO-Override": npssoOverride }
-          : {},
-      },
-    );
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load this profile.");
+    const data = await fetchPlayer(onlineId, npssoOverride);
+    if (mode === "comparison") {
+      state.comparison = data;
+      renderComparison();
+    } else {
+      state.primary = data;
+      state.comparison = null;
+      state.games = data.games || [];
+      state.visible = PAGE_SIZE;
+      state.query = "";
+      elements.gameSearch.value = "";
+      renderProfile(data);
+      renderStats(data.stats);
+      renderTopGames();
+      renderGames();
+      renderComparison();
+      elements.results.classList.remove("hidden");
+    }
 
-    state.games = data.games || [];
-    state.visible = PAGE_SIZE;
-    renderProfile(data);
-    renderStats(data.stats);
-    renderTopGames();
-    renderGames();
-    elements.results.classList.remove("hidden");
-    elements.message.textContent =
+    const cacheMessage =
       data.meta.cache === "BYPASS"
         ? `Updated ${formatDate(data.meta.fetchedAt)} with the temporary override. Nothing was cached.`
         : data.meta.cache === "HIT"
-        ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
-        : `Updated ${formatDate(data.meta.fetchedAt)}.`;
+          ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
+          : `Updated ${formatDate(data.meta.fetchedAt)}.`;
+    setMessage(cacheMessage);
     if (npssoOverride) elements.npssoSecret.value = "";
-    history.replaceState(null, "", `?player=${encodeURIComponent(data.player.onlineId)}`);
+    updateUrl();
   } catch (error) {
-    elements.message.textContent = error.message;
-    elements.message.className = "mt-4 min-h-6 text-sm text-rose-400";
+    setMessage(error.message, true);
   } finally {
     setLoading(false);
   }
+}
+
+async function fetchPlayer(onlineId, npssoOverride) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
+    {
+      headers: npssoOverride
+        ? { "X-NPSSO-Override": npssoOverride }
+        : {},
+    },
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Could not load this profile.");
+  return data;
 }
 
 function renderProfile(data) {
@@ -125,7 +223,7 @@ function renderProfile(data) {
   elements.currentGame.classList.toggle("hidden", !game);
   if (game) {
     elements.currentGame.replaceChildren(
-      node("p", "text-xs font-bold uppercase tracking-wider text-emerald-300", "Playing now"),
+      node("p", "text-xs font-bold uppercase tracking-wider text-cyan", "Playing now"),
       node("p", "mt-1 font-bold", game.name),
       node("p", "mt-1 text-xs text-slate-400", game.platform || ""),
     );
@@ -133,11 +231,7 @@ function renderProfile(data) {
 }
 
 function renderStats(stats) {
-  const trophySummary = stats.trophySummary;
-  const earned = trophySummary?.earnedTrophies;
-  const trophyTotal = earned
-    ? Object.values(earned).reduce((sum, value) => sum + Number(value || 0), 0)
-    : null;
+  const trophyTotal = getTrophyTotal(stats);
   const cards = [
     ["Total playtime", formatDuration(stats.totalPlayTimeSeconds), "Recorded by PSN"],
     ["Games played", formatNumber(stats.totalGames), "Visible game history"],
@@ -149,12 +243,70 @@ function renderStats(stats) {
       const card = node("article", "glass rounded-2xl border border-white/10 p-5");
       card.append(
         node("p", "text-sm text-slate-400", label),
-        node("p", "mt-2 text-2xl font-black", value),
+        node("p", "mt-2 text-2xl font-black tabular-nums", value),
         node("p", "mt-1 text-xs text-slate-600", detail),
       );
       return card;
     }),
   );
+}
+
+function renderComparison() {
+  const primary = state.primary;
+  const comparison = state.comparison;
+  elements.comparison.classList.toggle("hidden", !primary || !comparison);
+  if (!primary || !comparison) {
+    elements.comparisonCards.replaceChildren();
+    elements.comparisonNote.textContent = "";
+    return;
+  }
+
+  elements.comparisonCards.replaceChildren(
+    comparisonCard(primary, "Your baseline"),
+    comparisonCard(comparison, "Searched profile"),
+  );
+
+  const difference =
+    comparison.stats.totalPlayTimeSeconds - primary.stats.totalPlayTimeSeconds;
+  const subject = comparison.player.onlineId;
+  if (difference === 0) {
+    elements.comparisonNote.textContent = "Both profiles have the same recorded playtime.";
+  } else {
+    elements.comparisonNote.textContent = `${subject} has ${formatDuration(
+      Math.abs(difference),
+    )} ${difference > 0 ? "more" : "less"} recorded playtime.`;
+  }
+}
+
+function comparisonCard(data, label) {
+  const card = node("article", "glass rounded-2xl border border-white/10 p-5");
+  const heading = node("div", "flex items-center gap-3");
+  const image = document.createElement("img");
+  image.className = "h-11 w-11 rounded-xl bg-slate-800 object-cover";
+  image.src = data.player.avatarUrl || avatarFallback(data.player.onlineId);
+  image.alt = "";
+  const names = node("div");
+  names.append(
+    node("p", "text-xs uppercase tracking-wider text-slate-500", label),
+    node("h3", "font-black", data.player.onlineId),
+  );
+  heading.append(image, names);
+  const metrics = node("div", "mt-5 grid grid-cols-2 gap-3");
+  metrics.append(
+    metric("Playtime", formatDuration(data.stats.totalPlayTimeSeconds)),
+    metric("Games", formatNumber(data.stats.totalGames)),
+  );
+  card.append(heading, metrics);
+  return card;
+}
+
+function metric(label, value) {
+  const item = node("div", "rounded-xl bg-white/5 p-3");
+  item.append(
+    node("p", "text-xs text-slate-500", label),
+    node("p", "mt-1 font-black tabular-nums", value),
+  );
+  return item;
 }
 
 function renderTopGames() {
@@ -175,7 +327,7 @@ function renderTopGames() {
       const row = node("div", "flex justify-between gap-3");
       row.append(
         node("p", "truncate font-bold", game.name),
-        node("p", "shrink-0 text-sm text-cyan", formatDuration(game.playTimeSeconds)),
+        node("p", "shrink-0 text-sm text-cyan tabular-nums", formatDuration(game.playTimeSeconds)),
       );
       const track = node("div", "mt-2 h-1.5 overflow-hidden rounded-full bg-white/5");
       const bar = node("div", "h-full rounded-full bg-gradient-to-r from-electric to-cyan");
@@ -221,7 +373,7 @@ function gameCard(game) {
   const details = node("div", "mt-4 flex items-end justify-between gap-3");
   const played = node("div");
   played.append(
-    node("p", "text-xl font-black", formatDuration(game.playTimeSeconds)),
+    node("p", "text-xl font-black tabular-nums", formatDuration(game.playTimeSeconds)),
     node("p", "text-xs text-slate-500", `Last played ${formatDate(game.lastPlayedAt)}`),
   );
   const trophy = game.trophies
@@ -233,21 +385,29 @@ function gameCard(game) {
   return card;
 }
 
-function setLoading(loading, message = "") {
-  const button = elements.form.querySelector("button");
-  button.disabled = loading;
-  button.textContent = loading ? "Exploring …" : "Explore";
-  if (message) {
-    elements.message.textContent = message;
-    elements.message.className = "mt-4 min-h-6 text-sm text-slate-400";
-  }
+function getTrophyTotal(stats) {
+  const earned = stats.trophySummary?.earnedTrophies;
+  return earned
+    ? Object.values(earned).reduce((sum, value) => sum + Number(value || 0), 0)
+    : null;
 }
 
-function formatDuration(seconds) {
-  const hours = seconds / 3600;
-  if (hours >= 1000) return `${formatNumber(Math.round(hours))} hrs`;
-  if (hours >= 1) return `${hours.toLocaleString("en-US", { maximumFractionDigits: 1 })} hrs`;
-  return `${Math.round(seconds / 60)} min`;
+function setLoading(loading, message = "") {
+  const button = elements.form.querySelector("button[type='submit']");
+  button.disabled = loading;
+  button.textContent = loading
+    ? "Loading …"
+    : state.primary
+      ? "Compare"
+      : "Explore";
+  if (message) setMessage(message);
+}
+
+function setMessage(message, isError = false) {
+  elements.message.textContent = message;
+  elements.message.className = `mt-4 min-h-6 text-sm ${
+    isError ? "text-rose-400" : "text-slate-400"
+  }`;
 }
 
 function formatDate(value) {
@@ -271,8 +431,47 @@ function avatarFallback(name) {
   return `https://placehold.co/160x160/0d1728/2d9cff?text=${letter}`;
 }
 
-const initialPlayer = new URLSearchParams(location.search).get("player");
-if (initialPlayer) {
-  elements.input.value = initialPlayer;
-  loadPlayer(initialPlayer);
+function readSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return {
+      defaultPsn:
+        typeof saved.defaultPsn === "string" ? saved.defaultPsn : "",
+      autoLoad: Boolean(saved.autoLoad),
+    };
+  } catch {
+    return { defaultPsn: "", autoLoad: false };
+  }
 }
+
+function updateUrl() {
+  if (!state.primary) return;
+  const params = new URLSearchParams();
+  params.set("player", state.primary.player.onlineId);
+  if (state.comparison) {
+    params.set("compare", state.comparison.player.onlineId);
+  }
+  history.replaceState(null, "", `?${params.toString()}`);
+}
+
+async function initialise() {
+  const params = new URLSearchParams(location.search);
+  const initialPlayer = params.get("player");
+  const initialComparison = params.get("compare");
+  const settings = readSettings();
+  const primaryId =
+    initialPlayer ||
+    (settings.autoLoad && /^[A-Za-z0-9_-]{3,16}$/.test(settings.defaultPsn)
+      ? settings.defaultPsn
+      : "");
+
+  if (!primaryId) return;
+  elements.input.value = primaryId;
+  await loadPlayer(primaryId, "primary");
+  if (initialComparison && state.primary) {
+    elements.input.value = initialComparison;
+    await loadPlayer(initialComparison, "comparison");
+  }
+}
+
+void initialise();

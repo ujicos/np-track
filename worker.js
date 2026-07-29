@@ -3,6 +3,7 @@ import {
   exchangeNpssoForAccessCode,
   getBasicPresence,
   getProfileFromAccountId,
+  getProfileFromUserName,
   getUserPlayedGames,
   getUserTitles,
   getUserTrophyProfileSummary,
@@ -45,8 +46,9 @@ export default {
         return json({ error: "Invalid PSN online ID." }, 400, cors);
       }
 
-      const npssoOverride =
-        request.headers.get("X-NPSSO-Override")?.trim() || "";
+      const npssoOverride = normaliseNpsso(
+        request.headers.get("X-NPSSO-Override") || "",
+      );
       if (npssoOverride && !/^[A-Za-z0-9_-]{32,256}$/.test(npssoOverride)) {
         return json({ error: "The temporary NPSSO value is invalid." }, 400, cors);
       }
@@ -99,7 +101,7 @@ async function buildPlayerResponse(onlineId, npsso) {
   const accessCode = await exchangeNpssoForAccessCode(npsso);
   const auth = await exchangeAccessCodeForAuthTokens(accessCode);
   const authorization = { accessToken: auth.accessToken };
-  const accountId = await resolveExactAccountId(authorization, onlineId);
+  const accountId = await resolveAccountId(authorization, onlineId);
 
   const [profileResult, presenceResult, gamesResult, trophiesResult, summaryResult] =
     await Promise.allSettled([
@@ -200,7 +202,23 @@ async function buildPlayerResponse(onlineId, npsso) {
   };
 }
 
-async function resolveExactAccountId(authorization, onlineId) {
+async function resolveAccountId(authorization, onlineId) {
+  try {
+    const legacyResponse = await getProfileFromUserName(
+      authorization,
+      onlineId,
+    );
+    const legacyProfile = legacyResponse.profile;
+    if (
+      legacyProfile?.accountId &&
+      legacyProfile.onlineId?.toLowerCase() === onlineId.toLowerCase()
+    ) {
+      return legacyProfile.accountId;
+    }
+  } catch {
+    // Fall through to Sony's universal account search.
+  }
+
   const response = await makeUniversalSearch(
     authorization,
     onlineId,
@@ -212,7 +230,7 @@ async function resolveExactAccountId(authorization, onlineId) {
       result.socialMetadata?.onlineId?.toLowerCase() === onlineId.toLowerCase(),
   );
   if (!exact?.socialMetadata?.accountId) {
-    throw new Error(`No exact PSN account was found for “${onlineId}”.`);
+    throw new Error(`No PSN account was found for “${onlineId}”.`);
   }
   return exact.socialMetadata.accountId;
 }
@@ -297,6 +315,21 @@ function platformLabel(category = "") {
 
 function normaliseName(value = "") {
   return value.toLowerCase().replace(/[®™©]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function normaliseNpsso(value = "") {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed?.npsso === "string") return parsed.npsso.trim();
+  } catch {
+    // The request may contain only the raw cookie value.
+  }
+  return trimmed
+    .replace(/^npsso=/i, "")
+    .replace(/^["']|["']$/g, "")
+    .trim();
 }
 
 function corsHeaders(origin, configuredOrigin = "") {

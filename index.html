@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Explore PlayStation playtime, activity, game history, rankings, and trophy progress." />
-    <title>np-track — Your PlayStation history, decoded</title>
+    <title>np-track – uji ©</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -47,9 +47,38 @@
         <nav class="flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
           <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">Search</a>
           <a href="./about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">About</a>
+          <button id="open-settings" type="button" class="rounded-lg px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
+            aria-label="Open settings" title="Settings">
+            <span aria-hidden="true">⚙</span>
+          </button>
         </nav>
       </div>
     </header>
+
+    <dialog id="settings-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-3xl border border-white/10 bg-panel p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
+      <form id="settings-form" method="dialog" class="p-6 sm:p-7">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[.2em] text-cyan">Settings</p>
+            <h2 class="mt-2 text-2xl font-black">Your starting profile</h2>
+          </div>
+          <button id="close-settings" type="button" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close settings">✕</button>
+        </div>
+        <label for="default-psn" class="mt-6 block text-sm font-bold">Default PSN online ID</label>
+        <input id="default-psn" minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
+          class="mt-2 w-full rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan"
+          placeholder="Your PSN online ID" autocomplete="off" />
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input id="auto-load-default" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+          <span>Load this profile automatically when np-track opens.</span>
+        </label>
+        <p id="settings-message" class="mt-3 min-h-5 text-xs text-slate-500" role="status"></p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button id="cancel-settings" type="button" class="rounded-xl border border-white/10 px-5 py-2.5 font-bold text-slate-300 hover:border-cyan">Cancel</button>
+          <button type="submit" class="rounded-xl bg-electric px-5 py-2.5 font-bold hover:bg-cyan hover:text-ink">Save</button>
+        </div>
+      </form>
+    </dialog>
 
     <main class="mx-auto max-w-7xl px-5 py-12 sm:py-20">
       <section class="mx-auto max-w-4xl text-center">
@@ -112,6 +141,18 @@
           </div>
         </section>
 
+        <section id="comparison" class="mt-5 hidden rounded-3xl border border-cyan/20 bg-electric/5 p-5 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-[.2em] text-cyan">Comparison</p>
+              <h2 class="mt-1 text-2xl font-black">Playtime side by side</h2>
+            </div>
+            <button id="clear-comparison" type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-300 hover:border-cyan">Clear</button>
+          </div>
+          <div id="comparison-cards" class="mt-5 grid gap-4 md:grid-cols-2"></div>
+          <p id="comparison-note" class="mt-4 text-center text-sm text-slate-400"></p>
+        </section>
+
         <section id="stats" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"></section>
 
         <section class="mt-12">
@@ -132,7 +173,7 @@
               <h2 class="mt-1 text-3xl font-black">Every game</h2>
             </div>
             <div class="flex flex-col gap-3 sm:flex-row">
-              <input id="game-search" type="search" placeholder="Search games..."
+              <input id="game-search" type="search" placeholder="Filter games by title..."
                 class="rounded-xl border border-white/10 bg-panel px-4 py-2.5 outline-none focus:border-cyan" />
               <label for="game-sort" class="sr-only">Sort games</label>
               <select id="game-sort" class="rounded-xl border border-white/10 bg-panel px-4 py-2.5 outline-none">
@@ -153,6 +194,7 @@
     <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs text-slate-600">
       Not affiliated with Sony Interactive Entertainment. Available data depends on each profile’s PSN privacy settings.
     </footer>
-    <script src="./app.js" defer></script>
+    <script src="./version.js" defer></script>
+    <script src="./app.js" type="module"></script>
   </body>
 </html>
