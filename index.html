@@ -35,18 +35,53 @@
       .game-card { transition: transform .2s ease, border-color .2s ease; }
       .game-card:hover { transform: translateY(-3px); border-color: rgba(45, 156, 255, .5); }
       .skeleton { animation: pulse 1.5s ease-in-out infinite; }
+      .ps-mark { width: 2.25rem; height: 2.25rem; flex: none; }
+      @media (min-width: 1024px) {
+        #top-games {
+          grid-auto-flow: column;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-rows: repeat(5, minmax(0, 1fr));
+        }
+      }
+      [data-theme="steam"] body {
+        background: linear-gradient(135deg, rgba(42, 71, 94, .72), transparent 38rem), #1b2838;
+      }
+      [data-theme="steam"] header { background: rgba(23, 26, 33, .96); }
+      [data-theme="steam"] .glass,
+      [data-theme="steam"] #settings-dialog {
+        background: rgba(22, 32, 45, .96);
+        border-color: rgba(102, 192, 244, .18);
+        backdrop-filter: none;
+      }
+      [data-theme="steam"] .text-cyan { color: #66c0f4 !important; }
+      [data-theme="steam"] .bg-electric { background-color: #2a475e !important; }
+      [data-theme="steam"] .bg-electric:hover { background-color: #66c0f4 !important; color: #171a21 !important; }
+      [data-theme="steam"] .game-card { border-radius: .25rem; box-shadow: 0 8px 22px rgba(0, 0, 0, .22); }
+      [data-theme="steam"] #games { grid-template-columns: minmax(0, 1fr); }
+      [data-theme="steam"] #games .game-card {
+        display: grid;
+        grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr);
+      }
+      [data-theme="steam"] #games .game-card > img { height: 100%; min-height: 9rem; }
+      @media (max-width: 480px) {
+        [data-theme="steam"] #games .game-card { grid-template-columns: 6.5rem minmax(0, 1fr); }
+        [data-theme="steam"] #games .game-card > img { min-height: 100%; }
+      }
       @keyframes pulse { 50% { opacity: .45; } }
     </style>
   </head>
   <body class="min-h-screen text-slate-100 antialiased">
     <header class="border-b border-white/10 bg-ink/70 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-        <a href="./" class="text-xl font-black tracking-[-.04em]" aria-label="np-track home">
-          np<span class="text-cyan">-track</span>
+        <a href="./" class="flex items-center gap-2 text-xl font-black tracking-[-.04em]" aria-label="np-track home">
+          <svg class="ps-mark text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.15.794-.991.636.181.76.814.76 1.505v5.875c2.441 1.193 4.36-.002 4.36-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.391-1.501zm4.656 16.242 6.296-2.275c.715-.258.826-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499v-2.385l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.03 5.437.661 1.848.601 2.049 1.468 1.588 2.07-.465.604-1.616 1.036-1.616 1.036l-8.582 3.101v-2.312h.04zm-11.857-.25c-1.9.545-2.213 1.668-1.352 2.321.801.585 2.421 1.005 2.421 1.005s.724.215 1.462.316c1.009.18 2.022.183 2.882.032.834-.152 1.659-.434 1.659-.434v-2.07l-1.389.504c-.715.258-1.826.313-2.404.116-.586-.193-.475-.56.24-.818l3.553-1.27v-2.405l-4.931 1.765s-1.57.535-2.141.938z"/>
+          </svg>
+          <span>np<span class="text-cyan">-track</span></span>
         </a>
         <nav class="flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
           <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">Search</a>
-          <a href="./about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">About</a>
+          <a href="./about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">About / FAQ</a>
           <button id="open-settings" type="button" class="rounded-lg px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
             aria-label="Open settings" title="Settings">
             <span aria-hidden="true">⚙</span>
@@ -55,12 +90,12 @@
       </div>
     </header>
 
-    <dialog id="settings-dialog" class="w-[calc(100%-2rem)] max-w-md rounded-3xl border border-white/10 bg-panel p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
+    <dialog id="settings-dialog" class="max-h-[90vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-panel p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
       <form id="settings-form" method="dialog" class="p-6 sm:p-7">
         <div class="flex items-start justify-between gap-4">
           <div>
             <p class="text-xs font-bold uppercase tracking-[.2em] text-cyan">Settings</p>
-            <h2 class="mt-2 text-2xl font-black">Your starting profile</h2>
+            <h2 class="mt-2 text-2xl font-black">Profile and display</h2>
           </div>
           <button id="close-settings" type="button" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close settings">✕</button>
         </div>
@@ -68,9 +103,22 @@
         <input id="default-psn" minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
           class="mt-2 w-full rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan"
           placeholder="Your PSN online ID" autocomplete="off" />
+        <label for="legacy-psn" class="mt-5 block text-sm font-bold">Previous PSN online ID <span class="font-normal text-slate-500">(optional)</span></label>
+        <input id="legacy-psn" minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
+          class="mt-2 w-full rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan"
+          placeholder="Used only if the current ID cannot resolve" autocomplete="off" />
+        <p class="mt-2 text-xs leading-relaxed text-slate-500">This resolves renamed accounts through their stable account ID. It stays in this browser.</p>
         <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="auto-load-default" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Load this profile automatically when np-track opens.</span>
+        </label>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input id="show-legacy-id" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+          <span>Show the previous PSN ID on the profile. Hidden by default.</span>
+        </label>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input id="steam-theme" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+          <span><strong class="text-slate-100">Steam theme</strong><br><span class="text-xs text-slate-500">Use a Steam Library-style layout and palette.</span></span>
         </label>
         <p id="settings-message" class="mt-3 min-h-5 text-xs text-slate-500" role="status"></p>
         <div class="mt-6 flex justify-end gap-3">
@@ -82,42 +130,41 @@
 
     <main class="mx-auto max-w-7xl px-5 py-12 sm:py-20">
       <section class="mx-auto max-w-4xl text-center">
-        <p class="mb-3 text-sm font-bold uppercase tracking-[.25em] text-cyan">Profile intelligence</p>
-        <h1 class="text-4xl font-black tracking-tight sm:text-6xl">See the shape of your play.</h1>
-        <p class="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">
-          Enter a PSN online ID to turn the visible signals behind a profile into one focused view.
+        <div class="flex items-center justify-center gap-3">
+          <svg class="h-12 w-12 text-white sm:h-14 sm:w-14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.15.794-.991.636.181.76.814.76 1.505v5.875c2.441 1.193 4.36-.002 4.36-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.391-1.501zm4.656 16.242 6.296-2.275c.715-.258.826-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499v-2.385l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.03 5.437.661 1.848.601 2.049 1.468 1.588 2.07-.465.604-1.616 1.036-1.616 1.036l-8.582 3.101v-2.312h.04zm-11.857-.25c-1.9.545-2.213 1.668-1.352 2.321.801.585 2.421 1.005 2.421 1.005s.724.215 1.462.316c1.009.18 2.022.183 2.882.032.834-.152 1.659-.434 1.659-.434v-2.07l-1.389.504c-.715.258-1.826.313-2.404.116-.586-.193-.475-.56.24-.818l3.553-1.27v-2.405l-4.931 1.765s-1.57.535-2.141.938z"/>
+          </svg>
+          <h1 class="text-4xl font-black tracking-tight sm:text-5xl">np-track</h1>
+        </div>
+        <p class="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
+          Search PSN playtime, recent games, status, and trophies.
         </p>
 
-        <form id="player-form" class="glass mt-8 rounded-2xl border border-white/10 p-2 shadow-glow">
-          <div class="flex flex-col gap-2 sm:flex-row">
+        <form id="player-form" class="glass mt-10 rounded-2xl border border-white/10 p-3 shadow-glow">
+          <div class="flex flex-col gap-3 sm:flex-row">
             <label for="psn-id" class="sr-only">PSN online ID</label>
             <input id="psn-id" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+"
-              class="min-w-0 flex-1 bg-transparent px-4 py-3 outline-none placeholder:text-slate-600"
+              class="min-w-0 flex-1 rounded-xl bg-transparent px-4 py-3 outline-none placeholder:text-slate-600"
               placeholder="Enter a PSN online ID" autocomplete="off" />
-            <button class="rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-cyan hover:text-ink disabled:opacity-50" type="submit">Explore</button>
+            <div class="flex shrink-0 gap-1">
+              <button class="min-w-32 flex-1 rounded-l-xl bg-electric px-6 py-3 font-bold transition hover:bg-cyan hover:text-ink disabled:opacity-50 sm:flex-none" type="submit">Explore</button>
+              <button id="toggle-npsso" class="rounded-r-xl bg-electric px-4 py-3 font-bold transition hover:bg-cyan hover:text-ink"
+                type="button" aria-label="Open temporary NPSSO override" aria-controls="npsso-fields" aria-expanded="false">⌄</button>
+            </div>
           </div>
 
-          <div class="border-t border-white/10 px-3 pb-2 pt-4 text-left">
-            <label class="inline-flex cursor-pointer items-center gap-3 text-sm text-slate-400">
-              <input id="use-npsso" type="checkbox" class="h-4 w-4 rounded border-white/20 bg-panel accent-electric"
-                aria-controls="npsso-fields" aria-expanded="false" />
-              <span>Use a temporary NPSSO override</span>
-            </label>
-            <div id="npsso-fields" class="mt-4 hidden">
-              <label for="npsso-secret" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300">NPSSO secret</label>
+          <input id="use-npsso" type="checkbox" class="hidden" tabindex="-1" />
+          <div id="npsso-fields" class="mt-3 hidden border-t border-white/10 px-3 pb-2 pt-5 text-left">
+              <label for="npsso-secret" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300">Temporary NPSSO override</label>
               <input id="npsso-secret" type="password" autocomplete="off" spellcheck="false"
                 class="w-full rounded-xl border border-white/10 bg-ink/70 px-4 py-3 font-mono text-sm outline-none focus:border-cyan"
                 placeholder="Paste the complete NPSSO value" />
               <p class="mt-2 text-xs leading-relaxed text-amber-200/80">
                 Treat this like a password. It is sent to the configured Worker for this request only and is never saved or cached by np-track.
               </p>
-            </div>
           </div>
         </form>
         <p id="message" class="mt-4 min-h-6 text-sm text-slate-400" role="status" aria-live="polite"></p>
-        <a href="./about/" class="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-cyan transition hover:text-white">
-          What can np-track reveal? <span aria-hidden="true">→</span>
-        </a>
       </section>
 
       <div id="results" class="mt-12 hidden">
@@ -130,6 +177,7 @@
                   <h2 id="online-id" class="text-3xl font-black"></h2>
                   <span id="plus-badge" class="hidden rounded-full bg-yellow-400/15 px-2 py-1 text-xs font-bold text-yellow-300">PS Plus</span>
                 </div>
+                <p id="legacy-id-label" class="mt-1 hidden text-xs text-slate-500"></p>
                 <div class="mt-2 flex items-center gap-2">
                   <span id="status-dot" class="h-2.5 w-2.5 rounded-full bg-slate-500"></span>
                   <span id="presence-label" class="text-sm text-slate-300"></span>
@@ -144,8 +192,8 @@
         <section id="comparison" class="mt-5 hidden rounded-3xl border border-cyan/20 bg-electric/5 p-5 sm:p-6">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p class="text-xs font-bold uppercase tracking-[.2em] text-cyan">Comparison</p>
-              <h2 class="mt-1 text-2xl font-black">Playtime side by side</h2>
+              <p class="text-sm text-slate-400">Comparison</p>
+              <h2 class="mt-1 text-2xl font-black">Playtime comparison</h2>
             </div>
             <button id="clear-comparison" type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-300 hover:border-cyan">Clear</button>
           </div>
@@ -158,8 +206,7 @@
         <section class="mt-12">
           <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Hall of fame</p>
-              <h2 class="mt-1 text-3xl font-black">Top 10</h2>
+              <h2 class="mt-1 text-3xl font-black">Top 10 games</h2>
             </div>
             <p class="text-sm text-slate-500">Ranked by recorded playtime</p>
           </div>
@@ -169,8 +216,7 @@
         <section class="mt-12">
           <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
-              <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Library</p>
-              <h2 class="mt-1 text-3xl font-black">Every game</h2>
+              <h2 class="mt-1 text-3xl font-black">Games</h2>
             </div>
             <div class="flex flex-col gap-3 sm:flex-row">
               <input id="game-search" type="search" placeholder="Filter games by title..."
@@ -191,8 +237,10 @@
         </section>
       </div>
     </main>
-    <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs text-slate-600">
-      Not affiliated with Sony Interactive Entertainment. Available data depends on each profile’s PSN privacy settings.
+    <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs leading-relaxed text-slate-600">
+      <p>Not affiliated with Sony™ Interactive Entertainment.</p>
+      <p>Available data depends on each profile’s PSN privacy settings.</p>
+      <p>© ujicos 2026</p>
     </footer>
     <script src="./version.js" defer></script>
     <script src="./app.js" type="module"></script>

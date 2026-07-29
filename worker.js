@@ -52,6 +52,15 @@ export default {
       if (npssoOverride && !/^[A-Za-z0-9_-]{32,256}$/.test(npssoOverride)) {
         return json({ error: "The temporary NPSSO value is invalid." }, 400, cors);
       }
+      const legacyOnlineId = (
+        request.headers.get("X-PSN-Legacy-ID") || ""
+      ).trim();
+      if (
+        legacyOnlineId &&
+        !/^[a-zA-Z0-9_-]{3,16}$/.test(legacyOnlineId)
+      ) {
+        return json({ error: "The previous PSN online ID is invalid." }, 400, cors);
+      }
 
       const refresh = url.searchParams.get("refresh") === "1";
       const cacheKey = `player:v1:${onlineId.toLowerCase()}`;
@@ -65,6 +74,7 @@ export default {
       const data = await buildPlayerResponse(
         onlineId,
         npssoOverride || env.NPSSO,
+        legacyOnlineId,
       );
       const ttl = Math.max(60, Number(env.CACHE_TTL_SECONDS) || DEFAULT_TTL);
       if (!npssoOverride) {
@@ -87,13 +97,15 @@ export default {
       );
     } catch (error) {
       const message = safeErrorMessage(error);
-      const status = /not found|privacy|private/i.test(message) ? 404 : 502;
+      const status = /not found|privacy|private|does not belong/i.test(message)
+        ? 404
+        : 502;
       return json({ error: message }, status, cors);
     }
   },
 };
 
-async function buildPlayerResponse(onlineId, npsso) {
+async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
   if (!npsso) {
     throw new Error("The NPSSO Worker secret is missing.");
   }
@@ -101,7 +113,11 @@ async function buildPlayerResponse(onlineId, npsso) {
   const accessCode = await exchangeNpssoForAccessCode(npsso);
   const auth = await exchangeAccessCodeForAuthTokens(accessCode);
   const authorization = { accessToken: auth.accessToken };
-  const accountId = await resolveAccountId(authorization, onlineId);
+  const accountId = await resolveAccountId(
+    authorization,
+    onlineId,
+    legacyOnlineId,
+  );
 
   const [profileResult, presenceResult, gamesResult, trophiesResult, summaryResult] =
     await Promise.allSettled([
@@ -202,37 +218,62 @@ async function buildPlayerResponse(onlineId, npsso) {
   };
 }
 
-async function resolveAccountId(authorization, onlineId) {
+async function resolveAccountId(authorization, onlineId, legacyOnlineId = "") {
+  const directAccountId = await lookupAccountId(authorization, onlineId);
+  if (directAccountId) return directAccountId;
+
+  if (legacyOnlineId) {
+    const legacyAccountId = await lookupAccountId(
+      authorization,
+      legacyOnlineId,
+    );
+    if (legacyAccountId) {
+      const profile = await getProfileFromAccountId(
+        authorization,
+        legacyAccountId,
+      );
+      if (profile.onlineId?.toLowerCase() === onlineId.toLowerCase()) {
+        return legacyAccountId;
+      }
+      throw new Error(
+        `The previous PSN ID “${legacyOnlineId}” does not belong to “${onlineId}”.`,
+      );
+    }
+  }
+
+  throw new Error(`No PSN account was found for “${onlineId}”.`);
+}
+
+async function lookupAccountId(authorization, onlineId) {
   try {
     const legacyResponse = await getProfileFromUserName(
       authorization,
       onlineId,
     );
     const legacyProfile = legacyResponse.profile;
-    if (
-      legacyProfile?.accountId &&
-      legacyProfile.onlineId?.toLowerCase() === onlineId.toLowerCase()
-    ) {
+    if (legacyProfile?.accountId) {
       return legacyProfile.accountId;
     }
   } catch {
     // Fall through to Sony's universal account search.
   }
 
-  const response = await makeUniversalSearch(
-    authorization,
-    onlineId,
-    "SocialAllAccounts",
-  );
+  let response;
+  try {
+    response = await makeUniversalSearch(
+      authorization,
+      onlineId,
+      "SocialAllAccounts",
+    );
+  } catch {
+    return "";
+  }
   const results = response.domainResponses?.flatMap((domain) => domain.results || []) || [];
   const exact = results.find(
     (result) =>
       result.socialMetadata?.onlineId?.toLowerCase() === onlineId.toLowerCase(),
   );
-  if (!exact?.socialMetadata?.accountId) {
-    throw new Error(`No PSN account was found for “${onlineId}”.`);
-  }
-  return exact.socialMetadata.accountId;
+  return exact?.socialMetadata?.accountId || "";
 }
 
 async function getAllPlayedGames(authorization, accountId) {
@@ -346,7 +387,8 @@ function corsHeaders(origin, configuredOrigin = "") {
   return {
     "access-control-allow-origin": allowOrigin,
     "access-control-allow-methods": "GET, HEAD, OPTIONS",
-    "access-control-allow-headers": "Content-Type, X-NPSSO-Override",
+    "access-control-allow-headers":
+      "Content-Type, X-NPSSO-Override, X-PSN-Legacy-ID",
     "access-control-max-age": "86400",
     vary: "Origin",
   };

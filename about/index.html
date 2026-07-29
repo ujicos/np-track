@@ -32,79 +32,96 @@
           #070b14;
       }
       .glass { background: rgba(13, 23, 40, .78); backdrop-filter: blur(18px); }
+      .ps-mark { width: 2.25rem; height: 2.25rem; flex: none; }
+      [data-theme="steam"] body { background: linear-gradient(135deg, rgba(42, 71, 94, .72), transparent 38rem), #1b2838; }
+      [data-theme="steam"] header { background: rgba(23, 26, 33, .96); }
+      [data-theme="steam"] .glass { background: rgba(22, 32, 45, .96); border-color: rgba(102, 192, 244, .18); backdrop-filter: none; }
+      [data-theme="steam"] .text-cyan { color: #66c0f4 !important; }
     </style>
   </head>
   <body class="min-h-screen text-slate-100 antialiased">
     <header class="border-b border-white/10 bg-ink/70 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-        <a href="../" class="text-xl font-black tracking-[-.04em]" aria-label="np-track home">
-          np<span class="text-cyan">-track</span>
+        <a href="../" class="flex items-center gap-2 text-xl font-black tracking-[-.04em]" aria-label="np-track home">
+          <svg class="ps-mark text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.15.794-.991.636.181.76.814.76 1.505v5.875c2.441 1.193 4.36-.002 4.36-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.391-1.501zm4.656 16.242 6.296-2.275c.715-.258.826-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499v-2.385l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.03 5.437.661 1.848.601 2.049 1.468 1.588 2.07-.465.604-1.616 1.036-1.616 1.036l-8.582 3.101v-2.312h.04zm-11.857-.25c-1.9.545-2.213 1.668-1.352 2.321.801.585 2.421 1.005 2.421 1.005s.724.215 1.462.316c1.009.18 2.022.183 2.882.032.834-.152 1.659-.434 1.659-.434v-2.07l-1.389.504c-.715.258-1.826.313-2.404.116-.586-.193-.475-.56.24-.818l3.553-1.27v-2.405l-4.931 1.765s-1.57.535-2.141.938z"/>
+          </svg>
+          <span>np<span class="text-cyan">-track</span></span>
         </a>
         <nav class="flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
           <a href="../" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">Search</a>
-          <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">About</a>
+          <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">About / FAQ</a>
         </nav>
       </div>
     </header>
 
     <main class="mx-auto max-w-7xl px-5 py-14 sm:py-20">
       <section class="mx-auto max-w-3xl text-center">
-        <p class="text-sm font-bold uppercase tracking-[.25em] text-cyan">About np-track</p>
-        <h1 class="mt-3 text-4xl font-black tracking-tight sm:text-6xl">The fuller picture behind a profile.</h1>
-        <p class="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">
-          np-track brings the visible pieces of a PlayStation history together, then makes the patterns easier to explore.
+        <h1 class="text-4xl font-black tracking-tight sm:text-5xl">About / FAQ</h1>
+        <p class="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-400">
+          Notes about available PSN data, privacy, authentication, and account-name changes.
         </p>
       </section>
 
-      <section class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="What np-track can show">
+      <section class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Available features">
         <article class="glass rounded-2xl border border-white/10 p-6">
           <span class="text-2xl text-cyan">●</span>
-          <h2 class="mt-4 text-lg font-bold">Right now</h2>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">Presence, platform, and the current game when the profile lets PSN share them.</p>
+          <h2 class="mt-4 text-lg font-bold">Current status</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">Online status, platform, and current game when PSN returns them.</p>
         </article>
         <article class="glass rounded-2xl border border-white/10 p-6">
           <span class="text-2xl text-cyan">◷</span>
-          <h2 class="mt-4 text-lg font-bold">Time in context</h2>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">Total playtime, first and last played dates, and play counts across the visible history.</p>
+          <h2 class="mt-4 text-lg font-bold">Playtime</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">Total playtime, dates, and play counts for visible games.</p>
         </article>
         <article class="glass rounded-2xl border border-white/10 p-6">
           <span class="text-2xl text-cyan">↗</span>
-          <h2 class="mt-4 text-lg font-bold">The games that won</h2>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">A visual top ten reveals the titles that claimed the largest share of the journey.</p>
+          <h2 class="mt-4 text-lg font-bold">Top games</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">The ten games with the most recorded playtime.</p>
         </article>
         <article class="glass rounded-2xl border border-white/10 p-6">
           <span class="text-2xl text-cyan">◇</span>
-          <h2 class="mt-4 text-lg font-bold">Trophy momentum</h2>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">Overall trophy totals and game-level completion progress appear alongside playtime.</p>
+          <h2 class="mt-4 text-lg font-bold">Trophies</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">Overall totals and game-level completion when available.</p>
         </article>
         <article class="glass rounded-2xl border border-white/10 p-6">
           <span class="text-2xl text-cyan">⌕</span>
-          <h2 class="mt-4 text-lg font-bold">A library to explore</h2>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">Search instantly, then reorder the collection by time, recency, or title.</p>
+          <h2 class="mt-4 text-lg font-bold">Game library</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">Filter games and sort by playtime, recency, or title.</p>
         </article>
         <article class="glass rounded-2xl border border-white/10 p-6">
           <span class="text-2xl text-cyan">⌁</span>
-          <h2 class="mt-4 text-lg font-bold">Visibility comes first</h2>
-          <p class="mt-2 text-sm leading-relaxed text-slate-400">Only information PSN makes visible to the requesting account can appear. Nothing is guessed.</p>
+          <h2 class="mt-4 text-lg font-bold">Privacy</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-400">Results are limited by the profile’s PSN privacy settings.</p>
         </article>
       </section>
 
       <section class="mx-auto mt-16 grid max-w-5xl gap-5 lg:grid-cols-2">
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
-          <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Presence has limits</p>
-          <h2 class="mt-3 text-2xl font-black">Online, playing, or unavailable.</h2>
+          <h2 class="text-2xl font-black">Can it detect Appearing Offline?</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
             np-track can show online status and the current game when PSN returns them. “Appearing Offline” is not exposed as a separate state, so it looks the same as being offline.
           </p>
         </article>
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
-          <p class="text-sm font-bold uppercase tracking-[.2em] text-cyan">Temporary access</p>
-          <h2 class="mt-3 text-2xl font-black">An override for failed authentication.</h2>
+          <h2 class="text-2xl font-black">What is the NPSSO override?</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
             The search page can use a temporary NPSSO value for one request. np-track does not save it, place it in the URL, or read from and write to shared profile cache while it is in use.
           </p>
           <p class="mt-3 text-sm leading-relaxed text-amber-200/80">
             An NPSSO value is equivalent to a password. Only enter it on a deployment you control and trust.
+          </p>
+        </article>
+        <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
+          <h2 class="text-2xl font-black">Why can a renamed account fail?</h2>
+          <p class="mt-4 leading-relaxed text-slate-400">
+            Some Sony profile endpoints retain different name mappings after an online ID change. Add the previous ID in Settings so np-track can resolve the stable numeric account ID. Previous IDs are stored locally and hidden on the profile by default.
+          </p>
+        </article>
+        <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
+          <h2 class="text-2xl font-black">What does “NP” mean?</h2>
+          <p class="mt-4 leading-relaxed text-slate-400">
+            Sony uses NP throughout its network APIs and debug terminology, including NP environment and NP communication ID. It refers to the PlayStation network platform or network-service layer. Sony does not appear to publish a formal standalone expansion; PSN explicitly means PlayStation Network.
           </p>
         </article>
       </section>
@@ -114,9 +131,19 @@
       </div>
     </main>
 
-    <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs text-slate-600">
-      Not affiliated with Sony Interactive Entertainment. Available data depends on each profile’s PSN privacy settings.
+    <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs leading-relaxed text-slate-600">
+      <p>Not affiliated with Sony™ Interactive Entertainment.</p>
+      <p>Available data depends on each profile’s PSN privacy settings.</p>
+      <p>© ujicos 2026</p>
     </footer>
+    <script>
+      try {
+        const settings = JSON.parse(localStorage.getItem("np-track.settings") || "{}");
+        document.documentElement.dataset.theme = settings.steamTheme ? "steam" : "playstation";
+      } catch {
+        document.documentElement.dataset.theme = "playstation";
+      }
+    </script>
     <script src="../version.js" defer></script>
   </body>
 </html>

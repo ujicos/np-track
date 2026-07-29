@@ -18,12 +18,14 @@ const elements = {
   input: document.querySelector("#psn-id"),
   message: document.querySelector("#message"),
   useNpsso: document.querySelector("#use-npsso"),
+  toggleNpsso: document.querySelector("#toggle-npsso"),
   npssoFields: document.querySelector("#npsso-fields"),
   npssoSecret: document.querySelector("#npsso-secret"),
   results: document.querySelector("#results"),
   avatar: document.querySelector("#avatar"),
   onlineId: document.querySelector("#online-id"),
   plusBadge: document.querySelector("#plus-badge"),
+  legacyIdLabel: document.querySelector("#legacy-id-label"),
   statusDot: document.querySelector("#status-dot"),
   presenceLabel: document.querySelector("#presence-label"),
   presenceNote: document.querySelector("#presence-note"),
@@ -45,9 +47,14 @@ const elements = {
   closeSettings: document.querySelector("#close-settings"),
   cancelSettings: document.querySelector("#cancel-settings"),
   defaultPsn: document.querySelector("#default-psn"),
+  legacyPsn: document.querySelector("#legacy-psn"),
   autoLoadDefault: document.querySelector("#auto-load-default"),
+  showLegacyId: document.querySelector("#show-legacy-id"),
+  steamTheme: document.querySelector("#steam-theme"),
   settingsMessage: document.querySelector("#settings-message"),
 };
+
+applyTheme(readSettings().steamTheme);
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -60,11 +67,17 @@ elements.form.addEventListener("submit", async (event) => {
   await loadPlayer(requestedId, mode);
 });
 
-elements.useNpsso.addEventListener("change", () => {
-  const enabled = elements.useNpsso.checked;
+elements.toggleNpsso.addEventListener("click", () => {
+  const enabled = !elements.useNpsso.checked;
+  elements.useNpsso.checked = enabled;
   elements.npssoFields.classList.toggle("hidden", !enabled);
   elements.npssoSecret.required = enabled;
-  elements.useNpsso.setAttribute("aria-expanded", String(enabled));
+  elements.toggleNpsso.setAttribute("aria-expanded", String(enabled));
+  elements.toggleNpsso.textContent = enabled ? "⌃" : "⌄";
+  elements.toggleNpsso.setAttribute(
+    "aria-label",
+    `${enabled ? "Close" : "Open"} temporary NPSSO override`,
+  );
   if (enabled) elements.npssoSecret.focus();
   if (!enabled) elements.npssoSecret.value = "";
 });
@@ -95,7 +108,10 @@ elements.clearComparison.addEventListener("click", () => {
 elements.openSettings.addEventListener("click", () => {
   const settings = readSettings();
   elements.defaultPsn.value = settings.defaultPsn;
+  elements.legacyPsn.value = settings.legacyPsn;
   elements.autoLoadDefault.checked = settings.autoLoad;
+  elements.showLegacyId.checked = settings.showLegacyId;
+  elements.steamTheme.checked = settings.steamTheme;
   elements.settingsMessage.textContent = "";
   elements.settingsDialog.showModal();
 });
@@ -115,18 +131,29 @@ elements.settingsDialog.addEventListener("click", (event) => {
 elements.settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const defaultPsn = elements.defaultPsn.value.trim();
+  const legacyPsn = elements.legacyPsn.value.trim();
   if (defaultPsn && !/^[A-Za-z0-9_-]{3,16}$/.test(defaultPsn)) {
     elements.settingsMessage.textContent = "Enter a valid PSN online ID.";
+    elements.settingsMessage.className = "mt-3 min-h-5 text-xs text-rose-400";
+    return;
+  }
+  if (legacyPsn && !/^[A-Za-z0-9_-]{3,16}$/.test(legacyPsn)) {
+    elements.settingsMessage.textContent = "Enter a valid previous PSN online ID.";
     elements.settingsMessage.className = "mt-3 min-h-5 text-xs text-rose-400";
     return;
   }
 
   const settings = {
     defaultPsn,
+    legacyPsn,
     autoLoad: Boolean(defaultPsn && elements.autoLoadDefault.checked),
+    showLegacyId: Boolean(legacyPsn && elements.showLegacyId.checked),
+    steamTheme: elements.steamTheme.checked,
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  applyTheme(settings.steamTheme);
   elements.settingsDialog.close();
+  if (state.primary) renderProfile(state.primary);
 
   if (
     settings.autoLoad &&
@@ -147,11 +174,16 @@ async function loadPlayer(onlineId, mode = "primary") {
     return;
   }
 
-  setLoading(true, mode === "comparison" ? "Building the comparison …" : "Reading the PlayStation story …");
+  setLoading(true, mode === "comparison" ? "Loading comparison …" : "Loading profile …");
   if (mode === "primary") elements.results.classList.add("hidden");
 
   try {
-    const data = await fetchPlayer(onlineId, npssoOverride);
+    const settings = readSettings();
+    const legacyOnlineId =
+      settings.defaultPsn.toLowerCase() === onlineId.toLowerCase()
+        ? settings.legacyPsn
+        : "";
+    const data = await fetchPlayer(onlineId, npssoOverride, legacyOnlineId);
     if (mode === "comparison") {
       state.comparison = data;
       renderComparison();
@@ -177,7 +209,18 @@ async function loadPlayer(onlineId, mode = "primary") {
           ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
           : `Updated ${formatDate(data.meta.fetchedAt)}.`;
     setMessage(cacheMessage);
-    if (npssoOverride) elements.npssoSecret.value = "";
+    if (npssoOverride) {
+      elements.npssoSecret.value = "";
+      elements.npssoSecret.required = false;
+      elements.useNpsso.checked = false;
+      elements.npssoFields.classList.add("hidden");
+      elements.toggleNpsso.textContent = "⌄";
+      elements.toggleNpsso.setAttribute("aria-expanded", "false");
+      elements.toggleNpsso.setAttribute(
+        "aria-label",
+        "Open temporary NPSSO override",
+      );
+    }
     updateUrl();
   } catch (error) {
     setMessage(error.message, true);
@@ -186,13 +229,14 @@ async function loadPlayer(onlineId, mode = "primary") {
   }
 }
 
-async function fetchPlayer(onlineId, npssoOverride) {
+async function fetchPlayer(onlineId, npssoOverride, legacyOnlineId = "") {
+  const headers = {};
+  if (npssoOverride) headers["X-NPSSO-Override"] = npssoOverride;
+  if (legacyOnlineId) headers["X-PSN-Legacy-ID"] = legacyOnlineId;
   const response = await fetch(
     `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
     {
-      headers: npssoOverride
-        ? { "X-NPSSO-Override": npssoOverride }
-        : {},
+      headers,
     },
   );
   const data = await response.json();
@@ -206,6 +250,15 @@ function renderProfile(data) {
   elements.avatar.alt = `Profile picture for ${player.onlineId}`;
   elements.onlineId.textContent = player.onlineId;
   elements.plusBadge.classList.toggle("hidden", !player.isPlus);
+  const settings = readSettings();
+  const showLegacy =
+    settings.showLegacyId &&
+    settings.legacyPsn &&
+    settings.defaultPsn.toLowerCase() === player.onlineId.toLowerCase();
+  elements.legacyIdLabel.textContent = showLegacy
+    ? `Previous PSN ID: ${settings.legacyPsn}`
+    : "";
+  elements.legacyIdLabel.classList.toggle("hidden", !showLegacy);
 
   const labels = {
     playing: `Playing now on ${presence.platform || "PlayStation"}`,
@@ -437,11 +490,27 @@ function readSettings() {
     return {
       defaultPsn:
         typeof saved.defaultPsn === "string" ? saved.defaultPsn : "",
+      legacyPsn:
+        typeof saved.legacyPsn === "string" ? saved.legacyPsn : "",
       autoLoad: Boolean(saved.autoLoad),
+      showLegacyId: Boolean(saved.showLegacyId),
+      steamTheme: Boolean(saved.steamTheme),
     };
   } catch {
-    return { defaultPsn: "", autoLoad: false };
+    return {
+      defaultPsn: "",
+      legacyPsn: "",
+      autoLoad: false,
+      showLegacyId: false,
+      steamTheme: false,
+    };
   }
+}
+
+function applyTheme(useSteamTheme) {
+  document.documentElement.dataset.theme = useSteamTheme
+    ? "steam"
+    : "playstation";
 }
 
 function updateUrl() {
