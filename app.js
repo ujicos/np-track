@@ -11,6 +11,7 @@ const state = {
   visible: PAGE_SIZE,
   query: "",
   sort: "hours",
+  sessionNpsso: "",
 };
 
 const elements = {
@@ -50,8 +51,16 @@ const elements = {
   legacyPsn: document.querySelector("#legacy-psn"),
   autoLoadDefault: document.querySelector("#auto-load-default"),
   showLegacyId: document.querySelector("#show-legacy-id"),
+  showTrophyGames: document.querySelector("#show-trophy-games"),
   psColors: document.querySelector("#ps-colors"),
   settingsMessage: document.querySelector("#settings-message"),
+  trophyDialog: document.querySelector("#trophy-dialog"),
+  trophyBack: document.querySelector("#trophy-back"),
+  closeTrophies: document.querySelector("#close-trophies"),
+  trophyTitle: document.querySelector("#trophy-dialog-title"),
+  trophySubtitle: document.querySelector("#trophy-dialog-subtitle"),
+  trophyStatus: document.querySelector("#trophy-status"),
+  trophyContent: document.querySelector("#trophy-content"),
 };
 
 applyTheme(readSettings().psColors);
@@ -111,6 +120,7 @@ elements.openSettings.addEventListener("click", () => {
   elements.legacyPsn.value = settings.legacyPsn;
   elements.autoLoadDefault.checked = settings.autoLoad;
   elements.showLegacyId.checked = settings.showLegacyId;
+  elements.showTrophyGames.checked = settings.showTrophyGames;
   elements.psColors.checked = settings.psColors;
   elements.settingsMessage.textContent = "";
   elements.settingsDialog.showModal();
@@ -126,6 +136,18 @@ elements.cancelSettings.addEventListener("click", () => {
 
 elements.settingsDialog.addEventListener("click", (event) => {
   if (event.target === elements.settingsDialog) elements.settingsDialog.close();
+});
+
+elements.closeTrophies.addEventListener("click", () => {
+  elements.trophyDialog.close();
+});
+
+elements.trophyBack.addEventListener("click", () => {
+  renderTrophyOverview();
+});
+
+elements.trophyDialog.addEventListener("click", (event) => {
+  if (event.target === elements.trophyDialog) elements.trophyDialog.close();
 });
 
 elements.settingsForm.addEventListener("submit", async (event) => {
@@ -148,12 +170,16 @@ elements.settingsForm.addEventListener("submit", async (event) => {
     legacyPsn,
     autoLoad: Boolean(defaultPsn && elements.autoLoadDefault.checked),
     showLegacyId: Boolean(legacyPsn && elements.showLegacyId.checked),
+    showTrophyGames: elements.showTrophyGames.checked,
     psColors: elements.psColors.checked,
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   applyTheme(settings.psColors);
   elements.settingsDialog.close();
-  if (state.primary) renderProfile(state.primary);
+  if (state.primary) {
+    renderProfile(state.primary);
+    renderStats(state.primary);
+  }
 
   if (
     settings.autoLoad &&
@@ -195,7 +221,7 @@ async function loadPlayer(onlineId, mode = "primary") {
       state.query = "";
       elements.gameSearch.value = "";
       renderProfile(data);
-      renderStats(data.stats);
+      renderStats(data);
       renderTopGames();
       renderGames();
       renderComparison();
@@ -210,6 +236,7 @@ async function loadPlayer(onlineId, mode = "primary") {
           : `Updated ${formatDate(data.meta.fetchedAt)}.`;
     setMessage(cacheMessage);
     if (npssoOverride) {
+      state.sessionNpsso = npssoOverride;
       elements.npssoSecret.value = "";
       elements.npssoSecret.required = false;
       elements.useNpsso.checked = false;
@@ -283,22 +310,53 @@ function renderProfile(data) {
   }
 }
 
-function renderStats(stats) {
+function renderStats(data) {
+  const { stats } = data;
   const trophyTotal = getTrophyTotal(stats);
   const cards = [
-    ["Total playtime", formatDuration(stats.totalPlayTimeSeconds), "Recorded by PSN"],
-    ["Games played", formatNumber(stats.totalGames), "Visible game history"],
-    ["Trophy games", formatNumber(stats.trophyGames), "Games with trophy sets"],
-    ["Trophies", trophyTotal === null ? "Hidden" : formatNumber(trophyTotal), "All grades"],
+    {
+      label: "Total playtime",
+      value: formatDuration(stats.totalPlayTimeSeconds),
+    },
+    {
+      label: "Games played",
+      value: formatNumber(stats.totalGames),
+      detail: "Visible game history",
+    },
   ];
+  if (readSettings().showTrophyGames) {
+    cards.push({
+      label: "Trophy games",
+      value: formatNumber(stats.trophyGames),
+      detail: "Games with trophy sets",
+    });
+  }
+  cards.push({
+    label: "Trophies",
+    value: trophyTotal === null ? "Hidden" : formatNumber(trophyTotal),
+    detail: "View trophy collection",
+    action: openTrophyOverview,
+  });
+
   elements.stats.replaceChildren(
-    ...cards.map(([label, value, detail]) => {
-      const card = node("article", "glass rounded-2xl border border-white/10 p-5");
+    ...cards.map(({ label, value, detail, action }) => {
+      const card = node(
+        action ? "button" : "article",
+        `glass rounded-2xl border border-white/10 p-5 text-left ${
+          action ? "transition hover:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/50" : ""
+        }`,
+      );
+      if (action) {
+        card.type = "button";
+        card.addEventListener("click", action);
+      }
       card.append(
         node("p", "text-sm text-slate-400", label),
         node("p", "mt-2 text-2xl font-black tabular-nums", value),
-        node("p", "mt-1 text-xs text-slate-600", detail),
       );
+      if (detail) {
+        card.append(node("p", "mt-1 text-xs text-slate-600", detail));
+      }
       return card;
     }),
   );
@@ -372,7 +430,7 @@ function renderTopGames() {
       const item = node("article", "glass flex items-center gap-4 rounded-2xl border border-white/10 p-4");
       const rank = node("span", "w-8 text-center text-xl font-black text-slate-600", String(index + 1).padStart(2, "0"));
       const image = document.createElement("img");
-      image.className = "h-14 w-14 rounded-xl bg-slate-800 object-cover";
+      image.className = "game-cover-glow h-14 w-14 rounded-xl bg-slate-800 object-cover";
       image.src = game.imageUrl;
       image.alt = "";
       image.loading = "lazy";
@@ -388,6 +446,7 @@ function renderTopGames() {
       track.append(bar);
       body.append(row, track);
       item.append(rank, image, body);
+      makeTrophyInteractive(item, game);
       return item;
     }),
   );
@@ -414,7 +473,7 @@ function renderGames() {
 function gameCard(game) {
   const card = node("article", "game-card glass overflow-hidden rounded-2xl border border-white/10");
   const image = document.createElement("img");
-  image.className = "aspect-video w-full bg-slate-800 object-cover";
+  image.className = "game-cover-glow aspect-video w-full bg-slate-800 object-cover";
   image.src = game.screenshotUrl || game.imageUrl;
   image.alt = `Cover art for ${game.name}`;
   image.loading = "lazy";
@@ -431,12 +490,214 @@ function gameCard(game) {
     node("p", "text-xs text-slate-500", `Last played ${formatDate(game.lastPlayedAt)}`),
   );
   const trophy = game.trophies
-    ? node("span", "rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300", `${game.trophies.progress}% trophies`)
+    ? node("span", "rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300", `${game.trophies.progress}% · View trophies`)
     : node("span", "text-xs text-slate-600", "No trophy data");
   details.append(played, trophy);
   body.append(details);
   card.append(image, body);
+  makeTrophyInteractive(card, game);
   return card;
+}
+
+function makeTrophyInteractive(element, game) {
+  if (!game.trophies?.npCommunicationId) return;
+  element.classList.add("cursor-pointer");
+  element.tabIndex = 0;
+  element.setAttribute("role", "button");
+  element.setAttribute("aria-label", `View trophies for ${game.name}`);
+  element.addEventListener("click", () => openGameTrophies(game));
+  element.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openGameTrophies(game);
+  });
+}
+
+function openTrophyOverview() {
+  if (!state.primary) return;
+  if (!elements.trophyDialog.open) elements.trophyDialog.showModal();
+  renderTrophyOverview();
+}
+
+function renderTrophyOverview() {
+  const titles = [...(state.primary?.trophyTitles || [])].sort(
+    (a, b) =>
+      new Date(b.lastUpdatedAt || 0) - new Date(a.lastUpdatedAt || 0) ||
+      a.name.localeCompare(b.name, "en"),
+  );
+  elements.trophyBack.classList.add("hidden");
+  elements.trophyTitle.textContent = `${state.primary?.player.onlineId || "Player"}’s trophies`;
+  elements.trophySubtitle.textContent = `${formatNumber(titles.length)} games with trophy sets. Select a game to view every trophy.`;
+  elements.trophyStatus.textContent = "";
+
+  if (!titles.length) {
+    elements.trophyContent.replaceChildren(
+      node(
+        "p",
+        "rounded-2xl border border-white/10 p-5 text-sm text-slate-400",
+        "No visible trophy sets were returned for this profile.",
+      ),
+    );
+    return;
+  }
+
+  elements.trophyContent.replaceChildren(
+    ...titles.map((title) => {
+      const button = node(
+        "button",
+        "trophy-row flex w-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[.025] p-3 text-left",
+      );
+      button.type = "button";
+      const image = document.createElement("img");
+      image.className =
+        "game-cover-glow h-16 w-16 shrink-0 rounded-xl bg-slate-800 object-cover";
+      image.src = title.iconUrl || avatarFallback(title.name);
+      image.alt = "";
+      image.loading = "lazy";
+      const body = node("div", "min-w-0 flex-1");
+      body.append(
+        node("p", "truncate font-bold", title.name),
+        node(
+          "p",
+          "mt-1 text-xs text-slate-500",
+          `${displayPlatform(title.platform)} · ${trophyCount(title.earned)} of ${trophyCount(title.defined)} earned`,
+        ),
+      );
+      const progress = node("div", "mt-2 h-1.5 overflow-hidden rounded-full bg-white/5");
+      const bar = node("div", "h-full rounded-full bg-gradient-to-r from-electric to-cyan");
+      bar.style.width = `${Math.max(0, Math.min(100, Number(title.progress || 0)))}%`;
+      progress.append(bar);
+      body.append(progress);
+      button.append(
+        image,
+        body,
+        node("span", "shrink-0 text-sm font-bold text-cyan", `${title.progress || 0}%`),
+      );
+      button.addEventListener("click", () => openTrophyTitle(title));
+      return button;
+    }),
+  );
+}
+
+function openGameTrophies(game) {
+  const title = (state.primary?.trophyTitles || []).find(
+    (item) =>
+      item.npCommunicationId === game.trophies?.npCommunicationId,
+  ) || {
+    npCommunicationId: game.trophies?.npCommunicationId,
+    name: game.name,
+    iconUrl: game.imageUrl,
+    platform: game.platform,
+    progress: game.trophies?.progress || 0,
+  };
+  if (!elements.trophyDialog.open) elements.trophyDialog.showModal();
+  void openTrophyTitle(title);
+}
+
+async function openTrophyTitle(title) {
+  if (!title?.npCommunicationId || !state.primary) return;
+  elements.trophyBack.classList.remove("hidden");
+  elements.trophyTitle.textContent = title.name;
+  elements.trophySubtitle.textContent = `${displayPlatform(title.platform)} · ${title.progress || 0}% complete`;
+  elements.trophyStatus.textContent = "Loading trophies …";
+  elements.trophyContent.replaceChildren(
+    node("div", "skeleton h-24 rounded-2xl bg-white/5"),
+    node("div", "skeleton h-24 rounded-2xl bg-white/5"),
+    node("div", "skeleton h-24 rounded-2xl bg-white/5"),
+  );
+
+  try {
+    const data = await fetchTrophyDetails(title.npCommunicationId);
+    renderTrophyDetails(data);
+  } catch (error) {
+    elements.trophyStatus.textContent = error.message;
+    elements.trophyStatus.className = "min-h-6 py-2 text-sm text-rose-400";
+    elements.trophyContent.replaceChildren();
+  }
+}
+
+async function fetchTrophyDetails(npCommunicationId) {
+  const settings = readSettings();
+  const headers = {};
+  if (state.sessionNpsso) headers["X-NPSSO-Override"] = state.sessionNpsso;
+  if (
+    settings.legacyPsn &&
+    settings.defaultPsn.toLowerCase() ===
+      state.primary.player.onlineId.toLowerCase()
+  ) {
+    headers["X-PSN-Legacy-ID"] = settings.legacyPsn;
+  }
+  const response = await fetch(
+    `${API_BASE_URL}/api/player/${encodeURIComponent(
+      state.primary.player.onlineId,
+    )}/trophies/${encodeURIComponent(npCommunicationId)}`,
+    { headers },
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      data.error ||
+        "Could not load this trophy set. Reopen the NPSSO override if authentication expired.",
+    );
+  }
+  return data;
+}
+
+function renderTrophyDetails(data) {
+  const earnedCount = data.trophies.filter((trophy) => trophy.earned).length;
+  elements.trophyStatus.className = "min-h-6 py-2 text-sm text-slate-400";
+  elements.trophyStatus.textContent = `${formatNumber(earnedCount)} of ${formatNumber(data.trophies.length)} trophies earned.`;
+  elements.trophyContent.replaceChildren(
+    ...data.trophies.map((trophy) => {
+      const row = node(
+        "article",
+        `trophy-row flex items-start gap-4 rounded-2xl border p-4 ${
+          trophy.earned
+            ? "border-cyan/25 bg-cyan/[.04]"
+            : "border-white/10 bg-white/[.02] opacity-75"
+        }`,
+      );
+      const image = document.createElement("img");
+      image.className =
+        "h-16 w-16 shrink-0 rounded-xl bg-slate-800 object-cover shadow-lg";
+      image.src = trophy.iconUrl || avatarFallback(trophy.name);
+      image.alt = "";
+      image.loading = "lazy";
+      const body = node("div", "min-w-0 flex-1");
+      const heading = node("div", "flex flex-wrap items-center gap-2");
+      heading.append(
+        node("h3", "font-bold", trophy.name),
+        node(
+          "span",
+          "rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400",
+          trophy.type || "trophy",
+        ),
+      );
+      body.append(
+        heading,
+        node("p", "mt-1 text-sm leading-relaxed text-slate-400", trophy.detail || ""),
+      );
+      const meta = [];
+      if (trophy.earned) meta.push(`Earned ${formatDate(trophy.earnedAt)}`);
+      if (trophy.earnedRate !== null) meta.push(`${trophy.earnedRate}% earned rate`);
+      body.append(
+        node(
+          "p",
+          `mt-2 text-xs ${trophy.earned ? "text-cyan" : "text-slate-600"}`,
+          trophy.earned ? meta.join(" · ") || "Earned" : meta.join(" · ") || "Not earned",
+        ),
+      );
+      row.append(image, body);
+      return row;
+    }),
+  );
+}
+
+function trophyCount(counts = {}) {
+  return Object.values(counts).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0,
+  );
 }
 
 function getTrophyTotal(stats) {
@@ -476,6 +737,7 @@ function formatNumber(value) {
 function displayPlatform(value) {
   const platform = String(value || "PlayStation").trim();
   const lower = platform.toLowerCase();
+  if (lower.includes("ps4") && lower.includes("ps5")) return "PS4 / PS5";
   if (lower.includes("ps5")) return "PS5";
   if (lower.includes("ps4")) return "PS4";
   if (lower.includes("ps3")) return "PS3";
@@ -506,6 +768,7 @@ function readSettings() {
         typeof saved.legacyPsn === "string" ? saved.legacyPsn : "",
       autoLoad: Boolean(saved.autoLoad),
       showLegacyId: Boolean(saved.showLegacyId),
+      showTrophyGames: Boolean(saved.showTrophyGames),
       psColors:
         typeof saved.psColors === "boolean"
           ? saved.psColors
@@ -519,6 +782,7 @@ function readSettings() {
       legacyPsn: "",
       autoLoad: false,
       showLegacyId: false,
+      showTrophyGames: false,
       psColors: false,
     };
   }

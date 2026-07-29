@@ -4,8 +4,10 @@ import {
   getBasicPresence,
   getProfileFromAccountId,
   getProfileFromUserName,
+  getTitleTrophies,
   getUserPlayedGames,
   getUserTitles,
+  getUserTrophiesEarnedForTitle,
   getUserTrophyProfileSummary,
   makeUniversalSearch,
 } from "psn-api";
@@ -32,16 +34,22 @@ export default {
         return json({ ok: true, service: "np-track-api" }, 200, cors);
       }
 
-      const match = url.pathname.match(/^\/api\/player\/([^/]+)$/);
-      if (!match) {
+      const trophyMatch = url.pathname.match(
+        /^\/api\/player\/([^/]+)\/trophies\/([^/]+)$/,
+      );
+      const playerMatch = url.pathname.match(/^\/api\/player\/([^/]+)$/);
+      if (!trophyMatch && !playerMatch) {
         return json(
-          { error: "Not found. Use GET /api/player/:onlineId." },
+          {
+            error:
+              "Not found. Use GET /api/player/:onlineId or /api/player/:onlineId/trophies/:npCommunicationId.",
+          },
           404,
           cors,
         );
       }
 
-      const onlineId = decodeURIComponent(match[1]).trim();
+      const onlineId = decodeURIComponent((trophyMatch || playerMatch)[1]).trim();
       if (!/^[a-zA-Z0-9_-]{3,16}$/.test(onlineId)) {
         return json({ error: "Invalid PSN online ID." }, 400, cors);
       }
@@ -63,7 +71,52 @@ export default {
       }
 
       const refresh = url.searchParams.get("refresh") === "1";
-      const cacheKey = `player:v3:${onlineId.toLowerCase()}`;
+      if (trophyMatch) {
+        const npCommunicationId = decodeURIComponent(trophyMatch[2]).trim();
+        if (!/^[A-Za-z0-9_.-]{3,80}$/.test(npCommunicationId)) {
+          return json({ error: "Invalid trophy title ID." }, 400, cors);
+        }
+        const cacheKey = `trophies:v1:${onlineId.toLowerCase()}:${npCommunicationId}`;
+        if (!refresh && !npssoOverride) {
+          const cached = await env.PSN_CACHE.get(cacheKey, "json");
+          if (cached) {
+            return json(
+              { ...cached, meta: { ...cached.meta, cache: "HIT" } },
+              200,
+              cors,
+            );
+          }
+        }
+
+        const data = await buildTrophyResponse(
+          onlineId,
+          npCommunicationId,
+          npssoOverride || env.NPSSO,
+          legacyOnlineId,
+        );
+        const ttl = Math.max(60, Number(env.CACHE_TTL_SECONDS) || DEFAULT_TTL);
+        if (!npssoOverride) {
+          ctx.waitUntil(
+            env.PSN_CACHE.put(cacheKey, JSON.stringify(data), {
+              expirationTtl: ttl,
+            }),
+          );
+        }
+        return json(
+          {
+            ...data,
+            meta: {
+              ...data.meta,
+              cache: npssoOverride ? "BYPASS" : "MISS",
+              ttl: npssoOverride ? null : ttl,
+            },
+          },
+          200,
+          cors,
+        );
+      }
+
+      const cacheKey = `player:v4:${onlineId.toLowerCase()}`;
       if (!refresh && !npssoOverride) {
         const cached = await env.PSN_CACHE.get(cacheKey, "json");
         if (cached) {
@@ -208,6 +261,7 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
       trophyGames: trophyTitles.length,
       trophySummary,
     },
+    trophyTitles: trophyTitles.map(mapTrophyTitle),
     games,
     meta: {
       fetchedAt: new Date().toISOString(),
@@ -219,6 +273,105 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
         trophySummary: summaryResult.status === "rejected",
       },
     },
+  };
+}
+
+async function buildTrophyResponse(
+  onlineId,
+  npCommunicationId,
+  npsso,
+  legacyOnlineId = "",
+) {
+  if (!npsso) {
+    throw new Error("The NPSSO Worker secret is missing.");
+  }
+
+  const accessCode = await exchangeNpssoForAccessCode(npsso);
+  const auth = await exchangeAccessCodeForAuthTokens(accessCode);
+  const authorization = { accessToken: auth.accessToken };
+  const accountId = await resolveAccountId(
+    authorization,
+    onlineId,
+    legacyOnlineId,
+  );
+  const titles = await getAllTrophyTitles(authorization, accountId);
+  const title = titles.find(
+    (item) => item.npCommunicationId === npCommunicationId,
+  );
+  if (!title) {
+    throw new Error("This trophy set is private or unavailable.");
+  }
+
+  const options = {
+    limit: 800,
+    npServiceName: title.npServiceName || "trophy",
+  };
+  const [definition, earned] = await Promise.all([
+    getTitleTrophies(
+      authorization,
+      npCommunicationId,
+      "all",
+      options,
+    ),
+    getUserTrophiesEarnedForTitle(
+      authorization,
+      accountId,
+      npCommunicationId,
+      "all",
+      options,
+    ),
+  ]);
+  const earnedById = new Map(
+    (earned.trophies || []).map((trophy) => [trophy.trophyId, trophy]),
+  );
+  const trophies = (definition.trophies || []).map((trophy) => {
+    const userTrophy = earnedById.get(trophy.trophyId) || {};
+    const concealed = trophy.trophyHidden && !userTrophy.earned;
+    return {
+      trophyId: trophy.trophyId,
+      groupId: trophy.trophyGroupId || "default",
+      hidden: Boolean(trophy.trophyHidden),
+      type: trophy.trophyType,
+      name: concealed ? "Hidden trophy" : trophy.trophyName || "Trophy",
+      detail:
+        concealed
+          ? "Earn this trophy to reveal its details."
+          : trophy.trophyDetail || "",
+      iconUrl: concealed ? "" : trophy.trophyIconUrl || "",
+      earned: Boolean(userTrophy.earned),
+      earnedAt: userTrophy.earnedDateTime || null,
+      earnedRate: userTrophy.trophyEarnedRate || null,
+      rarity: userTrophy.trophyRare ?? null,
+      progressTarget: userTrophy.trophyProgressTargetValue || null,
+      rewardImageUrl: userTrophy.trophyRewardImageUrl || "",
+      rewardName: userTrophy.trophyRewardName || "",
+    };
+  });
+
+  return {
+    player: { accountId, onlineId },
+    title: mapTrophyTitle(title),
+    trophies,
+    meta: {
+      fetchedAt: new Date().toISOString(),
+      totalItemCount: trophies.length,
+      hasTrophyGroups: Boolean(definition.hasTrophyGroups),
+    },
+  };
+}
+
+function mapTrophyTitle(title) {
+  return {
+    npCommunicationId: title.npCommunicationId,
+    name: title.trophyTitleName,
+    iconUrl: title.trophyTitleIconUrl || "",
+    platform: platformLabelFromValue(title.trophyTitlePlatform),
+    service: title.npServiceName,
+    progress: Number(title.progress || 0),
+    earned: title.earnedTrophies || {},
+    defined: title.definedTrophies || {},
+    hasGroups: Boolean(title.hasTrophyGroups),
+    lastUpdatedAt: title.lastUpdatedDateTime || null,
   };
 }
 
@@ -373,9 +526,9 @@ export function platformLabel(category = "", titleId = "", conceptTitleIds = [])
       ),
     )
   ) {
-    return "PS3";
+    return "PS4 / PS5";
   }
-  return "Unknown";
+  return "PS4 / PS5";
 }
 
 function platformLabelFromValue(value = "") {

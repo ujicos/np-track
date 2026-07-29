@@ -3,11 +3,7 @@ export function formatDuration(value) {
   const rawHours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  const compact = rawHours < 10 && minutes < 10 && seconds < 10;
-  const hours = String(rawHours).padStart(compact ? 1 : 2, "0");
-  const mins = String(minutes).padStart(compact ? 1 : 2, "0");
-  const secs = String(seconds).padStart(compact ? 1 : 2, "0");
-  return `${hours}h ${mins}m ${secs}s`;
+  return `${rawHours}h ${minutes}m ${seconds}s`;
 }
 
 export function normaliseNpssoInput(value) {

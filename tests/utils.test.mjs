@@ -7,8 +7,12 @@ test("formats single-digit playtime without padding", () => {
   assert.equal(formatDuration(3661), "1h 1m 1s");
 });
 
-test("formats multi-digit playtime with two-digit groups", () => {
+test("formats multi-digit playtime without changing complete values", () => {
   assert.equal(formatDuration(36610), "10h 10m 10s");
+});
+
+test("does not pad smaller minute or second components", () => {
+  assert.equal(formatDuration(10 * 3600 + 61), "10h 1m 1s");
 });
 
 test("keeps the full hour count without commas or milliseconds", () => {

@@ -34,6 +34,11 @@
       .glass { background: rgba(13, 23, 40, .78); backdrop-filter: blur(18px); }
       .game-card { transition: transform .2s ease, border-color .2s ease; }
       .game-card:hover { transform: translateY(-3px); border-color: rgba(45, 156, 255, .5); }
+      .game-cover-glow {
+        box-shadow: 10px 0 28px rgba(45, 156, 255, .18), 0 10px 28px rgba(0, 0, 0, .3);
+      }
+      .trophy-row { transition: background-color .18s ease, border-color .18s ease; }
+      .trophy-row:hover { background: rgba(45, 156, 255, .07); border-color: rgba(45, 156, 255, .35); }
       .skeleton { animation: pulse 1.5s ease-in-out infinite; }
       .ps-mark { width: 2.25rem; height: 2.25rem; flex: none; }
       @media (min-width: 1024px) {
@@ -57,7 +62,8 @@
       }
       [data-theme="steam"] main { max-width: 74rem; }
       [data-theme="steam"] .glass,
-      [data-theme="steam"] #settings-dialog {
+      [data-theme="steam"] #settings-dialog,
+      [data-theme="steam"] #trophy-dialog {
         background: rgba(23, 33, 46, .97);
         border-color: rgba(102, 192, 244, .14);
         backdrop-filter: none;
@@ -76,6 +82,7 @@
       [data-theme="steam"] #avatar,
       [data-theme="steam"] #current-game,
       [data-theme="steam"] #stats > article,
+      [data-theme="steam"] #stats > button,
       [data-theme="steam"] input,
       [data-theme="steam"] select,
       [data-theme="steam"] button {
@@ -89,7 +96,8 @@
       }
       [data-theme="steam"] #avatar { border-radius: 1rem !important; }
       [data-theme="steam"] #stats { gap: .75rem; }
-      [data-theme="steam"] #stats > article {
+      [data-theme="steam"] #stats > article,
+      [data-theme="steam"] #stats > button {
         border: 0;
         border-radius: 1rem !important;
         background: linear-gradient(90deg, #16202d, #1c2938);
@@ -180,6 +188,10 @@
           <span>Show the previous PSN ID on the profile. Hidden by default.</span>
         </label>
         <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input id="show-trophy-games" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+          <span>Show the Trophy games counter. Hidden by default.</span>
+        </label>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="ps-colors" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span><strong class="text-slate-100">Enable PS colors</strong><br><span class="text-xs text-slate-500">Use the brighter PS4/PS5 blue palette.</span></span>
         </label>
@@ -189,6 +201,22 @@
           <button type="submit" class="rounded-xl bg-electric px-5 py-2.5 font-bold hover:bg-cyan hover:text-ink">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="trophy-dialog" class="max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-panel p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
+      <section class="p-5 sm:p-7">
+        <div class="sticky top-0 z-10 -mx-1 flex items-start justify-between gap-4 bg-panel/95 px-1 pb-4 backdrop-blur">
+          <div class="min-w-0">
+            <button id="trophy-back" type="button" class="mb-2 hidden text-sm font-bold text-cyan hover:text-white">← All trophy games</button>
+            <p class="text-xs font-bold uppercase tracking-[.2em] text-cyan">Trophies</p>
+            <h2 id="trophy-dialog-title" class="mt-1 truncate text-2xl font-black">Trophy collection</h2>
+            <p id="trophy-dialog-subtitle" class="mt-1 text-sm text-slate-400"></p>
+          </div>
+          <button id="close-trophies" type="button" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close trophies">✕</button>
+        </div>
+        <p id="trophy-status" class="min-h-6 py-2 text-sm text-slate-400" role="status" aria-live="polite"></p>
+        <div id="trophy-content" class="mt-2 grid gap-3"></div>
+      </section>
     </dialog>
 
     <main class="mx-auto max-w-7xl px-5 py-12 sm:py-20">
@@ -224,7 +252,7 @@
                 class="w-full rounded-xl border border-white/10 bg-ink/70 px-4 py-3 font-mono text-sm outline-none focus:border-cyan"
                 placeholder="Paste the complete NPSSO value" />
               <p class="mt-2 text-xs leading-relaxed text-amber-200/80">
-                Treat this like a password. It is sent to the configured Worker for this request only and is never saved or cached by np-track.
+                Treat this like a password. It stays only in this tab’s memory so trophy details can load, and is never saved or cached by np-track.
               </p>
           </div>
         </form>
