@@ -457,7 +457,7 @@ function renderTopGames() {
       image.alt = "";
       image.loading = "lazy";
       const body = node("div", "min-w-0 flex-1");
-      const row = node("div", "flex justify-between gap-3");
+      const row = node("div", "top-game-row flex justify-between gap-3");
       row.append(
         node("p", "truncate font-bold", game.name),
         node("p", "shrink-0 text-sm text-cyan tabular-nums", formatDuration(game.playTimeSeconds)),
@@ -504,7 +504,7 @@ function gameCard(game) {
     platformBadge(game.platform),
     node("h3", "mt-2 truncate text-lg font-bold", game.name),
   );
-  const details = node("div", "mt-4 flex items-end justify-between gap-3");
+  const details = node("div", "game-details mt-4 flex items-end justify-between gap-3");
   const played = node("div");
   played.append(
     node("p", "text-xl font-black tabular-nums", formatDuration(game.playTimeSeconds)),

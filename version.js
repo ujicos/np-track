@@ -2,7 +2,14 @@ const VERSION_CURRENT_KEY = "np-track.current-version";
 const VERSION_RELOADED_KEY = "np-track.reloaded-version";
 const VERSION_CHECK_INTERVAL_MS = 60_000;
 const VERSION_URL = new URL("./version.json", document.currentScript.src);
+const SERVICE_WORKER_URL = new URL("./service-worker.js", document.currentScript.src);
 let versionCheckRunning = false;
+
+if ("serviceWorker" in navigator) {
+  addEventListener("load", () => {
+    void navigator.serviceWorker.register(SERVICE_WORKER_URL.href).catch(() => {});
+  });
+}
 
 async function fetchVersion() {
   try {

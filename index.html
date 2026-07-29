@@ -2,8 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Explore PlayStation playtime, activity, game history, rankings, and trophy progress." />
+    <meta name="theme-color" content="#171a21" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="np-track" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icons/app-icon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="./assets/icons/app-icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="./assets/icons/app-icon-180.png" />
     <title>np-track – uji ©</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -161,26 +171,96 @@
       }
       [data-theme="steam"] #games .game-card > div { padding: 1rem 1.25rem; }
       [data-theme="steam"] #games .game-card h3 { color: #e5e7eb; }
-      @media (max-width: 480px) {
-        [data-theme="steam"] #games .game-card { grid-template-columns: 7rem minmax(0, 1fr); }
-        [data-theme="steam"] #games .game-card > img { min-height: 100%; }
+      button, a, input, select { touch-action: manipulation; }
+      @media (max-width: 639px) {
+        body { overflow-x: hidden; }
+        .site-header {
+          padding:
+            max(.65rem, env(safe-area-inset-top))
+            max(.8rem, env(safe-area-inset-right))
+            .65rem
+            max(.8rem, env(safe-area-inset-left));
+        }
+        .site-brand { gap: .45rem; font-size: 1rem; }
+        .site-brand .ps-mark { height: 1.75rem; width: 1.75rem; }
+        .site-nav { gap: 0; font-size: .75rem; }
+        .site-nav a, .site-nav button {
+          display: inline-flex;
+          min-height: 2.75rem;
+          align-items: center;
+          justify-content: center;
+          padding: .55rem .6rem;
+        }
+        main { padding: 2.25rem max(1rem, env(safe-area-inset-right)) 3rem max(1rem, env(safe-area-inset-left)) !important; }
+        #player-form { margin-top: 1.75rem; }
+        #results { margin-top: 2rem; }
+        #results > section:first-child { padding: 1rem; }
+        #results > section:first-child > div { gap: 1rem; }
+        #avatar { height: 4rem; width: 4rem; border-radius: .9rem; }
+        #online-id { font-size: 1.5rem; line-height: 1.8rem; }
+        #current-game { width: 100%; max-width: none; }
+        #stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+        #stats > :first-child { grid-column: 1 / -1; }
+        #stats > article, #stats > button { min-width: 0; padding: .9rem; }
+        #stats .text-2xl { font-size: 1.2rem; line-height: 1.55rem; }
+        #results > section { margin-top: 2.5rem; }
+        #results h2.text-3xl { font-size: 1.65rem; line-height: 2rem; }
+        #top-games > article { gap: .65rem; padding: .75rem; }
+        #top-games > article > span { width: 1.5rem; font-size: .9rem; }
+        #top-games > article > img { height: 3rem; width: 3rem; border-radius: .65rem; }
+        .top-game-row { flex-direction: column; gap: .1rem; align-items: flex-start; }
+        .top-game-row p { max-width: 100%; }
+        #games { gap: .7rem; }
+        [data-theme="steam"] #games .game-card { grid-template-columns: 5.75rem minmax(0, 1fr); }
+        [data-theme="steam"] #games .game-card > img {
+          min-height: 100%;
+          border-radius: 1rem 0 0 1rem;
+        }
+        [data-theme="steam"] #games .game-card > div { padding: .8rem; }
+        [data-theme="steam"] #games .game-card h3 {
+          font-size: .95rem;
+          line-height: 1.25rem;
+        }
+        .game-details { flex-direction: column; align-items: flex-start; gap: .65rem; }
+        .game-details .text-xl { font-size: 1.05rem; line-height: 1.4rem; }
+        #settings-dialog, #trophy-dialog {
+          width: calc(100% - .75rem);
+          max-height: calc(100dvh - .75rem);
+          border-radius: 1rem;
+        }
+        #settings-form, #trophy-dialog > section { padding: 1rem; }
+        #settings-dialog h2, #trophy-dialog-title { font-size: 1.25rem; line-height: 1.6rem; }
+        #settings-dialog button, #trophy-dialog button, #show-more { min-height: 2.75rem; }
+        #trophy-content .trophy-row { gap: .75rem; padding: .75rem; }
+        #trophy-content .trophy-row > img { height: 3rem; width: 3rem; border-radius: .65rem; }
+        #trophy-content .trophy-row > span:last-child { font-size: .75rem; }
+        footer {
+          padding-right: max(1rem, env(safe-area-inset-right)) !important;
+          padding-bottom: max(2.5rem, env(safe-area-inset-bottom)) !important;
+          padding-left: max(1rem, env(safe-area-inset-left)) !important;
+        }
+      }
+      @media (max-width: 390px) {
+        .header-search-link { display: none !important; }
+        .site-nav a, .site-nav button { padding-right: .5rem; padding-left: .5rem; }
+        #top-games > article > img { height: 2.75rem; width: 2.75rem; }
       }
       @keyframes pulse { 50% { opacity: .45; } }
     </style>
   </head>
   <body class="min-h-screen text-slate-100 antialiased">
     <header class="border-b border-white/10 bg-ink/70 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-        <a href="./" class="flex items-center gap-2 text-xl font-black tracking-[-.04em]" aria-label="np-track home">
+      <div class="site-header mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
+        <a href="./" class="site-brand flex items-center gap-2 text-xl font-black tracking-[-.04em]" aria-label="np-track home">
           <img src="./assets/playstation-mark.svg" class="ps-mark object-contain" alt="" />
           <svg class="hidden playstation-logo ps-mark text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.15.794-.991.636.181.76.814.76 1.505v5.875c2.441 1.193 4.36-.002 4.36-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.391-1.501zm4.656 16.242 6.296-2.275c.715-.258.826-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499v-2.385l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.03 5.437.661 1.848.601 2.049 1.468 1.588 2.07-.465.604-1.616 1.036-1.616 1.036l-8.582 3.101v-2.312h.04zm-11.857-.25c-1.9.545-2.213 1.668-1.352 2.321.801.585 2.421 1.005 2.421 1.005s.724.215 1.462.316c1.009.18 2.022.183 2.882.032.834-.152 1.659-.434 1.659-.434v-2.07l-1.389.504c-.715.258-1.826.313-2.404.116-.586-.193-.475-.56.24-.818l3.553-1.27v-2.405l-4.931 1.765s-1.57.535-2.141.938z"/>
           </svg>
           <span>np<span class="text-cyan">-track</span></span>
         </a>
-        <nav class="flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
-          <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">Search</a>
-          <a href="./about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">About / FAQ</a>
+        <nav class="site-nav flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
+          <a href="./" aria-current="page" class="header-search-link rounded-lg bg-white/10 px-4 py-2 text-white">Search</a>
+          <a href="./about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"><span class="sm:hidden">About</span><span class="hidden sm:inline">About / FAQ</span></a>
           <button id="open-settings" type="button" class="rounded-lg px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
             aria-label="Open settings" title="Settings">
             <span aria-hidden="true">⚙</span>
@@ -260,7 +340,7 @@
           <svg class="hidden playstation-logo h-12 w-12 text-white sm:h-14 sm:w-14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.15.794-.991.636.181.76.814.76 1.505v5.875c2.441 1.193 4.36-.002 4.36-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.391-1.501zm4.656 16.242 6.296-2.275c.715-.258.826-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499v-2.385l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.03 5.437.661 1.848.601 2.049 1.468 1.588 2.07-.465.604-1.616 1.036-1.616 1.036l-8.582 3.101v-2.312h.04zm-11.857-.25c-1.9.545-2.213 1.668-1.352 2.321.801.585 2.421 1.005 2.421 1.005s.724.215 1.462.316c1.009.18 2.022.183 2.882.032.834-.152 1.659-.434 1.659-.434v-2.07l-1.389.504c-.715.258-1.826.313-2.404.116-.586-.193-.475-.56.24-.818l3.553-1.27v-2.405l-4.931 1.765s-1.57.535-2.141.938z"/>
           </svg>
-          <h1 class="text-4xl font-black tracking-tight sm:text-5xl">np-track</h1>
+          <h1 class="text-3xl font-black tracking-tight sm:text-5xl">np-track</h1>
         </div>
         <p class="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
           Search PSN playtime, recent games, status, and trophies.
