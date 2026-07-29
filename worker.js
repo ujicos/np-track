@@ -28,7 +28,7 @@ export default {
 
       const url = new URL(request.url);
       if (url.pathname === "/api/health") {
-        return json({ ok: true, service: "psntracker-api" }, 200, cors);
+        return json({ ok: true, service: "np-track-api" }, 200, cors);
       }
 
       const match = url.pathname.match(/^\/api\/player\/([^/]+)$/);

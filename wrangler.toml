@@ -1,4 +1,4 @@
-name = "psntracker-api"
+name = "np-track-api"
 main = "worker.js"
 compatibility_date = "2026-07-29"
 
