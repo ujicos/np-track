@@ -287,13 +287,17 @@ function renderProfile(data) {
     : "";
   elements.legacyIdLabel.classList.toggle("hidden", !showLegacy);
 
-  const labels = {
-    playing: `Playing now (${displayPlatform(presence.platform)})`,
-    online: `Online (${displayPlatform(presence.platform)})`,
-    offline: "Offline",
-    unknown: "Status unavailable or hidden",
-  };
-  elements.presenceLabel.textContent = labels[presence.status] || labels.unknown;
+  if (presence.status === "playing" || presence.status === "online") {
+    elements.presenceLabel.replaceChildren(
+      document.createTextNode(
+        presence.status === "playing" ? "Playing now " : "Online ",
+      ),
+      platformBadge(presence.platform),
+    );
+  } else {
+    elements.presenceLabel.textContent =
+      presence.status === "offline" ? "Offline" : "Status unavailable or hidden";
+  }
   elements.presenceNote.textContent = presence.note || "";
   elements.statusDot.className = `h-2.5 w-2.5 rounded-full ${
     presence.online ? "bg-emerald-400 shadow-[0_0_12px_#34d399]" : "bg-slate-500"
@@ -302,11 +306,20 @@ function renderProfile(data) {
   const game = presence.currentGames?.[0];
   elements.currentGame.classList.toggle("hidden", !game);
   if (game) {
-    elements.currentGame.replaceChildren(
-      node("p", "text-xs font-bold uppercase tracking-wider text-cyan", "Playing now"),
-      node("p", "mt-1 font-bold", game.name),
-      node("p", "mt-1 text-xs font-semibold text-slate-400", displayPlatform(game.platform)),
+    const image = document.createElement("img");
+    image.className =
+      "game-cover-glow h-14 w-14 shrink-0 rounded-xl bg-slate-800 object-cover";
+    image.src = game.iconUrl || avatarFallback(game.name);
+    image.alt = "";
+    const body = node("div", "min-w-0 flex-1");
+    body.append(
+      node("p", "text-xs font-semibold text-slate-400", "Playing now"),
+      node("p", "mt-0.5 truncate font-bold", game.name),
+      platformBadge(game.platform, "mt-2"),
     );
+    const row = node("div", "flex min-w-0 items-center gap-3");
+    row.append(image, body);
+    elements.currentGame.replaceChildren(row);
   }
 }
 
@@ -479,7 +492,7 @@ function gameCard(game) {
   image.loading = "lazy";
   const body = node("div", "p-5");
   body.append(
-    node("p", "text-xs font-bold uppercase tracking-wider text-cyan", displayPlatform(game.platform)),
+    platformBadge(game.platform),
     node("h3", "mt-2 truncate text-lg font-bold", game.name),
   );
   const details = node("div", "mt-4 flex items-end justify-between gap-3");
@@ -557,12 +570,15 @@ function renderTrophyOverview() {
       const body = node("div", "min-w-0 flex-1");
       body.append(
         node("p", "truncate font-bold", title.name),
-        node(
-          "p",
-          "mt-1 text-xs text-slate-500",
-          `${displayPlatform(title.platform)} · ${trophyCount(title.earned)} of ${trophyCount(title.defined)} earned`,
+      );
+      const meta = node("div", "mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500");
+      meta.append(
+        platformBadge(title.platform),
+        document.createTextNode(
+          `· ${trophyCount(title.earned)} of ${trophyCount(title.defined)} earned`,
         ),
       );
+      body.append(meta);
       const progress = node("div", "mt-2 h-1.5 overflow-hidden rounded-full bg-white/5");
       const bar = node("div", "h-full rounded-full bg-gradient-to-r from-electric to-cyan");
       bar.style.width = `${Math.max(0, Math.min(100, Number(title.progress || 0)))}%`;
@@ -598,7 +614,10 @@ async function openTrophyTitle(title) {
   if (!title?.npCommunicationId || !state.primary) return;
   elements.trophyBack.classList.remove("hidden");
   elements.trophyTitle.textContent = title.name;
-  elements.trophySubtitle.textContent = `${displayPlatform(title.platform)} · ${title.progress || 0}% complete`;
+  elements.trophySubtitle.replaceChildren(
+    platformBadge(title.platform),
+    document.createTextNode(` · ${title.progress || 0}% complete`),
+  );
   elements.trophyStatus.textContent = "Loading trophies …";
   elements.trophyContent.replaceChildren(
     node("div", "skeleton h-24 rounded-2xl bg-white/5"),
@@ -732,6 +751,43 @@ function formatDate(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value || 0);
+}
+
+function platformBadge(value, extraClass = "") {
+  const label = displayPlatform(value);
+  const badge = node("span", `platform-badge ${extraClass}`.trim());
+  const platforms = [];
+  if (label.includes("PS4")) platforms.push("PS4");
+  if (label.includes("PS5")) platforms.push("PS5");
+
+  if (!platforms.length) {
+    badge.classList.add(
+      "text-xs",
+      "font-bold",
+      "uppercase",
+      "tracking-wider",
+      "text-cyan",
+    );
+    badge.textContent = label;
+    return badge;
+  }
+
+  badge.setAttribute("role", "img");
+  badge.setAttribute("aria-label", platforms.join(" and "));
+  platforms.forEach((platform, index) => {
+    if (index) {
+      badge.append(node("span", "text-[10px] text-slate-600", "/"));
+    }
+    const image = document.createElement("img");
+    image.className = "platform-wordmark";
+    image.src =
+      platform === "PS5"
+        ? "./assets/ps5-wordmark.svg"
+        : "./assets/ps4-wordmark.svg";
+    image.alt = "";
+    badge.append(image);
+  });
+  return badge;
 }
 
 function displayPlatform(value) {
