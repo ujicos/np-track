@@ -142,13 +142,13 @@ ALLOWED_ORIGIN = "http://localhost:8000,https://DITT-GITHUB-NAVN.github.io"
 
 ## 3. Koble frontend til Workeren
 
-Åpne `app.js` og erstatt:
+Produksjonsfrontenden bruker:
 
 ```js
-const API_BASE_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
+const API_BASE_URL = "https://psntracker-api.ujicos.workers.dev";
 ```
 
-med URL-en Wrangler oppgir etter deploy. Ikke legg til avsluttende `/`.
+Ikke legg til avsluttende `/` hvis URL-en endres senere.
 
 Test frontend lokalt:
 

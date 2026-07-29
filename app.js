@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
+const API_BASE_URL = "https://psntracker-api.ujicos.workers.dev";
 const PAGE_SIZE = 24;
 
 const state = { games: [], visible: PAGE_SIZE, query: "", sort: "hours" };
