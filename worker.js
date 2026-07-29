@@ -63,7 +63,7 @@ export default {
       }
 
       const refresh = url.searchParams.get("refresh") === "1";
-      const cacheKey = `player:v1:${onlineId.toLowerCase()}`;
+      const cacheKey = `player:v2:${onlineId.toLowerCase()}`;
       if (!refresh && !npssoOverride) {
         const cached = await env.PSN_CACHE.get(cacheKey, "json");
         if (cached) {
@@ -309,14 +309,16 @@ function mapPresence(response) {
   const currentGames = (presence.gameTitleInfoList || []).map((game) => ({
     titleId: game.npTitleId,
     name: game.titleName,
-    platform: game.launchPlatform || game.format,
+    platform: platformLabelFromValue(game.launchPlatform || game.format),
     iconUrl: game.conceptIconUrl || game.npTitleIconUrl || "",
   }));
 
   return {
     online,
     status: online ? (currentGames.length ? "playing" : "online") : "offline",
-    platform: platformInfo.platform || presence.platform || null,
+    platform: platformLabelFromValue(
+      platformInfo.platform || presence.platform,
+    ),
     lastOnlineAt:
       platformInfo.lastOnlineDate ||
       presence.lastOnlineDate ||
@@ -352,6 +354,18 @@ function platformLabel(category = "") {
   if (category.includes("ps4")) return "PS4";
   if (category.includes("pspc")) return "PC";
   return "Unknown";
+}
+
+function platformLabelFromValue(value = "") {
+  const platform = String(value).trim();
+  if (!platform) return null;
+  const lower = platform.toLowerCase();
+  if (lower.includes("ps5")) return "PS5";
+  if (lower.includes("ps4")) return "PS4";
+  if (lower.includes("ps3")) return "PS3";
+  if (lower.includes("vita")) return "PS Vita";
+  if (lower.includes("pc")) return "PC";
+  return platform.toUpperCase();
 }
 
 function normaliseName(value = "") {

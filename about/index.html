@@ -33,9 +33,15 @@
       }
       .glass { background: rgba(13, 23, 40, .78); backdrop-filter: blur(18px); }
       .ps-mark { width: 2.25rem; height: 2.25rem; flex: none; }
-      [data-theme="steam"] body { background: linear-gradient(135deg, rgba(42, 71, 94, .72), transparent 38rem), #1b2838; }
-      [data-theme="steam"] header { background: rgba(23, 26, 33, .96); }
-      [data-theme="steam"] .glass { background: rgba(22, 32, 45, .96); border-color: rgba(102, 192, 244, .18); backdrop-filter: none; }
+      [data-theme="steam"] body {
+        background:
+          radial-gradient(circle at 28% 18%, rgba(50, 100, 112, .34), transparent 34rem),
+          radial-gradient(circle at 72% 22%, rgba(64, 45, 77, .28), transparent 32rem),
+          #1b2838;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      [data-theme="steam"] header { background: #171a21; border-color: #2a475e; box-shadow: 0 3px 18px rgba(0, 0, 0, .35); }
+      [data-theme="steam"] .glass { background: rgba(23, 33, 46, .97); border-color: rgba(102, 192, 244, .14); border-radius: 2px; backdrop-filter: none; }
       [data-theme="steam"] .text-cyan { color: #66c0f4 !important; }
     </style>
   </head>
@@ -43,7 +49,8 @@
     <header class="border-b border-white/10 bg-ink/70 backdrop-blur-xl">
       <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
         <a href="../" class="flex items-center gap-2 text-xl font-black tracking-[-.04em]" aria-label="np-track home">
-          <svg class="ps-mark text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <img src="../assets/playstation-mark.svg" class="ps-mark object-contain" alt="" />
+          <svg class="hidden playstation-logo ps-mark text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.15.794-.991.636.181.76.814.76 1.505v5.875c2.441 1.193 4.36-.002 4.36-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.391-1.501zm4.656 16.242 6.296-2.275c.715-.258.826-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499v-2.385l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.03 5.437.661 1.848.601 2.049 1.468 1.588 2.07-.465.604-1.616 1.036-1.616 1.036l-8.582 3.101v-2.312h.04zm-11.857-.25c-1.9.545-2.213 1.668-1.352 2.321.801.585 2.421 1.005 2.421 1.005s.724.215 1.462.316c1.009.18 2.022.183 2.882.032.834-.152 1.659-.434 1.659-.434v-2.07l-1.389.504c-.715.258-1.826.313-2.404.116-.586-.193-.475-.56.24-.818l3.553-1.27v-2.405l-4.931 1.765s-1.57.535-2.141.938z"/>
           </svg>
           <span>np<span class="text-cyan">-track</span></span>

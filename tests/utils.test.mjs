@@ -11,8 +11,8 @@ test("formats multi-digit playtime with two-digit groups", () => {
   assert.equal(formatDuration(36610), "10h 10m 10s");
 });
 
-test("caps the hour group without commas or milliseconds", () => {
-  assert.equal(formatDuration(360000.99), "99+h 00m 00s");
+test("keeps the full hour count without commas or milliseconds", () => {
+  assert.equal(formatDuration(923 * 3600 + 48 * 60 + 46.99), "923h 48m 46s");
 });
 
 test("accepts a raw NPSSO cookie value", () => {

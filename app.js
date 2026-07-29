@@ -204,7 +204,7 @@ async function loadPlayer(onlineId, mode = "primary") {
 
     const cacheMessage =
       data.meta.cache === "BYPASS"
-        ? `Updated ${formatDate(data.meta.fetchedAt)} with the temporary override. Nothing was cached.`
+        ? `Updated ${formatDate(data.meta.fetchedAt)} with the temporary override.\nNothing was cached.`
         : data.meta.cache === "HIT"
           ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
           : `Updated ${formatDate(data.meta.fetchedAt)}.`;
@@ -261,8 +261,8 @@ function renderProfile(data) {
   elements.legacyIdLabel.classList.toggle("hidden", !showLegacy);
 
   const labels = {
-    playing: `Playing now on ${presence.platform || "PlayStation"}`,
-    online: `Online on ${presence.platform || "PlayStation"}`,
+    playing: `Playing now (${displayPlatform(presence.platform)})`,
+    online: `Online (${displayPlatform(presence.platform)})`,
     offline: "Offline",
     unknown: "Status unavailable or hidden",
   };
@@ -278,7 +278,7 @@ function renderProfile(data) {
     elements.currentGame.replaceChildren(
       node("p", "text-xs font-bold uppercase tracking-wider text-cyan", "Playing now"),
       node("p", "mt-1 font-bold", game.name),
-      node("p", "mt-1 text-xs text-slate-400", game.platform || ""),
+      node("p", "mt-1 text-xs font-semibold text-slate-400", displayPlatform(game.platform)),
     );
   }
 }
@@ -420,7 +420,7 @@ function gameCard(game) {
   image.loading = "lazy";
   const body = node("div", "p-5");
   body.append(
-    node("p", "text-xs font-bold uppercase tracking-wider text-cyan", game.platform),
+    node("p", "text-xs font-bold uppercase tracking-wider text-cyan", displayPlatform(game.platform)),
     node("h3", "mt-2 truncate text-lg font-bold", game.name),
   );
   const details = node("div", "mt-4 flex items-end justify-between gap-3");
@@ -458,7 +458,7 @@ function setLoading(loading, message = "") {
 
 function setMessage(message, isError = false) {
   elements.message.textContent = message;
-  elements.message.className = `mt-4 min-h-6 text-sm ${
+  elements.message.className = `mt-4 min-h-6 whitespace-pre-line text-sm ${
     isError ? "text-rose-400" : "text-slate-400"
   }`;
 }
@@ -470,6 +470,17 @@ function formatDate(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value || 0);
+}
+
+function displayPlatform(value) {
+  const platform = String(value || "PlayStation").trim();
+  const lower = platform.toLowerCase();
+  if (lower.includes("ps5")) return "PS5";
+  if (lower.includes("ps4")) return "PS4";
+  if (lower.includes("ps3")) return "PS3";
+  if (lower.includes("vita")) return "PS Vita";
+  if (lower.includes("pc")) return "PC";
+  return platform;
 }
 
 function node(tag, className, text = "") {

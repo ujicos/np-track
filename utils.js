@@ -4,10 +4,7 @@ export function formatDuration(value) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   const compact = rawHours < 10 && minutes < 10 && seconds < 10;
-  const hours =
-    rawHours > 99
-      ? "99+"
-      : String(rawHours).padStart(compact ? 1 : 2, "0");
+  const hours = String(rawHours).padStart(compact ? 1 : 2, "0");
   const mins = String(minutes).padStart(compact ? 1 : 2, "0");
   const secs = String(seconds).padStart(compact ? 1 : 2, "0");
   return `${hours}h ${mins}m ${secs}s`;
