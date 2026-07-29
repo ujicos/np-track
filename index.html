@@ -51,6 +51,21 @@
         height: .72rem;
         opacity: .9;
       }
+      .trophy-grade {
+        display: inline-grid;
+        height: 2rem;
+        width: 2rem;
+        flex: none;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, .09);
+        border-radius: .65rem;
+        box-shadow: inset 0 1px rgba(255, 255, 255, .12), 0 5px 14px rgba(0, 0, 0, .18);
+      }
+      .trophy-grade svg { height: 1.05rem; width: 1.05rem; }
+      .trophy-grade-bronze { color: #d28a5b; background: rgba(151, 84, 43, .18); }
+      .trophy-grade-silver { color: #d7e0e8; background: rgba(180, 194, 207, .14); }
+      .trophy-grade-gold { color: #ffd466; background: rgba(219, 164, 38, .16); }
+      .trophy-grade-platinum { color: #7de4ff; background: rgba(90, 193, 220, .15); }
       #current-game { max-width: 23rem; }
       .skeleton { animation: pulse 1.5s ease-in-out infinite; }
       .ps-mark { width: 2.25rem; height: 2.25rem; flex: none; }
@@ -227,7 +242,13 @@
           </div>
           <button id="close-trophies" type="button" class="rounded-lg px-3 py-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close trophies">✕</button>
         </div>
-        <p id="trophy-status" class="min-h-6 py-2 text-sm text-slate-400" role="status" aria-live="polite"></p>
+        <div class="flex flex-wrap items-center justify-between gap-3 py-2">
+          <p id="trophy-status" class="min-h-6 text-sm text-slate-400" role="status" aria-live="polite"></p>
+          <label id="earned-only-wrap" class="hidden flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[.025] px-3 py-2 text-sm text-slate-300">
+            <input id="earned-only" type="checkbox" class="h-4 w-4 accent-electric" />
+            <span>Earned only</span>
+          </label>
+        </div>
         <div id="trophy-content" class="mt-2 grid gap-3"></div>
       </section>
     </dialog>

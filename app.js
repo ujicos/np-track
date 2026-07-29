@@ -12,6 +12,8 @@ const state = {
   query: "",
   sort: "hours",
   sessionNpsso: "",
+  trophyEarnedOnly: false,
+  activeTrophyData: null,
 };
 
 const elements = {
@@ -61,6 +63,8 @@ const elements = {
   trophySubtitle: document.querySelector("#trophy-dialog-subtitle"),
   trophyStatus: document.querySelector("#trophy-status"),
   trophyContent: document.querySelector("#trophy-content"),
+  earnedOnlyWrap: document.querySelector("#earned-only-wrap"),
+  earnedOnly: document.querySelector("#earned-only"),
 };
 
 applyTheme(readSettings().psColors);
@@ -144,6 +148,11 @@ elements.closeTrophies.addEventListener("click", () => {
 
 elements.trophyBack.addEventListener("click", () => {
   renderTrophyOverview();
+});
+
+elements.earnedOnly.addEventListener("change", () => {
+  state.trophyEarnedOnly = elements.earnedOnly.checked;
+  if (state.activeTrophyData) renderTrophyDetails(state.activeTrophyData);
 });
 
 elements.trophyDialog.addEventListener("click", (event) => {
@@ -538,6 +547,10 @@ function renderTrophyOverview() {
       new Date(b.lastUpdatedAt || 0) - new Date(a.lastUpdatedAt || 0) ||
       a.name.localeCompare(b.name, "en"),
   );
+  state.activeTrophyData = null;
+  state.trophyEarnedOnly = false;
+  elements.earnedOnly.checked = false;
+  elements.earnedOnlyWrap.classList.add("hidden");
   elements.trophyBack.classList.add("hidden");
   elements.trophyTitle.textContent = `${state.primary?.player.onlineId || "Player"}’s trophies`;
   elements.trophySubtitle.textContent = `${formatNumber(titles.length)} games with trophy sets. Select a game to view every trophy.`;
@@ -554,7 +567,32 @@ function renderTrophyOverview() {
     return;
   }
 
-  elements.trophyContent.replaceChildren(
+  const overviewNodes = [];
+  const earnedByGrade =
+    state.primary?.stats?.trophySummary?.earnedTrophies || null;
+  if (earnedByGrade) {
+    const summary = node(
+      "div",
+      "mb-2 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[.02] p-3 sm:grid-cols-4",
+    );
+    ["bronze", "silver", "gold", "platinum"].forEach((grade) => {
+      const item = node(
+        "div",
+        "flex items-center gap-3 rounded-xl bg-white/[.025] p-2.5",
+      );
+      item.append(
+        trophyGradeIcon(grade),
+        node(
+          "span",
+          "font-black tabular-nums",
+          formatNumber(earnedByGrade[grade]),
+        ),
+      );
+      summary.append(item);
+    });
+    overviewNodes.push(summary);
+  }
+  overviewNodes.push(
     ...titles.map((title) => {
       const button = node(
         "button",
@@ -568,9 +606,7 @@ function renderTrophyOverview() {
       image.alt = "";
       image.loading = "lazy";
       const body = node("div", "min-w-0 flex-1");
-      body.append(
-        node("p", "truncate font-bold", title.name),
-      );
+      body.append(node("p", "truncate font-bold", title.name));
       const meta = node("div", "mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500");
       meta.append(
         platformBadge(title.platform),
@@ -593,6 +629,9 @@ function renderTrophyOverview() {
       return button;
     }),
   );
+  elements.trophyContent.replaceChildren(
+    ...overviewNodes,
+  );
 }
 
 function openGameTrophies(game) {
@@ -612,6 +651,10 @@ function openGameTrophies(game) {
 
 async function openTrophyTitle(title) {
   if (!title?.npCommunicationId || !state.primary) return;
+  state.activeTrophyData = null;
+  state.trophyEarnedOnly = false;
+  elements.earnedOnly.checked = false;
+  elements.earnedOnlyWrap.classList.remove("hidden");
   elements.trophyBack.classList.remove("hidden");
   elements.trophyTitle.textContent = title.name;
   elements.trophySubtitle.replaceChildren(
@@ -663,11 +706,27 @@ async function fetchTrophyDetails(npCommunicationId) {
 }
 
 function renderTrophyDetails(data) {
+  state.activeTrophyData = data;
   const earnedCount = data.trophies.filter((trophy) => trophy.earned).length;
+  const visibleTrophies = state.trophyEarnedOnly
+    ? data.trophies.filter((trophy) => trophy.earned)
+    : data.trophies;
   elements.trophyStatus.className = "min-h-6 py-2 text-sm text-slate-400";
-  elements.trophyStatus.textContent = `${formatNumber(earnedCount)} of ${formatNumber(data.trophies.length)} trophies earned.`;
+  elements.trophyStatus.textContent = state.trophyEarnedOnly
+    ? `${formatNumber(earnedCount)} earned trophies shown.`
+    : `${formatNumber(earnedCount)} of ${formatNumber(data.trophies.length)} trophies earned.`;
+  if (!visibleTrophies.length) {
+    elements.trophyContent.replaceChildren(
+      node(
+        "p",
+        "rounded-2xl border border-white/10 p-5 text-sm text-slate-400",
+        "No earned trophies in this set yet.",
+      ),
+    );
+    return;
+  }
   elements.trophyContent.replaceChildren(
-    ...data.trophies.map((trophy) => {
+    ...visibleTrophies.map((trophy) => {
       const row = node(
         "article",
         `trophy-row flex items-start gap-4 rounded-2xl border p-4 ${
@@ -685,12 +744,8 @@ function renderTrophyDetails(data) {
       const body = node("div", "min-w-0 flex-1");
       const heading = node("div", "flex flex-wrap items-center gap-2");
       heading.append(
+        trophyGradeIcon(trophy.type),
         node("h3", "font-bold", trophy.name),
-        node(
-          "span",
-          "rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400",
-          trophy.type || "trophy",
-        ),
       );
       body.append(
         heading,
@@ -710,6 +765,51 @@ function renderTrophyDetails(data) {
       return row;
     }),
   );
+}
+
+function trophyGradeIcon(value) {
+  const grade = ["bronze", "silver", "gold", "platinum"].includes(
+    String(value).toLowerCase(),
+  )
+    ? String(value).toLowerCase()
+    : "bronze";
+  const badge = node(
+    "span",
+    `trophy-grade trophy-grade-${grade}`,
+  );
+  badge.setAttribute("role", "img");
+  badge.setAttribute(
+    "aria-label",
+    `${grade[0].toUpperCase()}${grade.slice(1)} trophy`,
+  );
+  badge.title = `${grade[0].toUpperCase()}${grade.slice(1)} trophy`;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  const paths = [
+    "M8 4h8v4a4 4 0 0 1-8 0V4Z",
+    "M8 6H5v1a4 4 0 0 0 4 4",
+    "M16 6h3v1a4 4 0 0 1-4 4",
+    "M12 12v5",
+    "M8.5 20h7",
+    "M10 17h4",
+  ];
+  paths.forEach((definition) => {
+    const path = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    path.setAttribute("d", definition);
+    svg.append(path);
+  });
+  badge.append(svg);
+  return badge;
 }
 
 function trophyCount(counts = {}) {
