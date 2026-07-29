@@ -50,11 +50,11 @@ const elements = {
   legacyPsn: document.querySelector("#legacy-psn"),
   autoLoadDefault: document.querySelector("#auto-load-default"),
   showLegacyId: document.querySelector("#show-legacy-id"),
-  steamTheme: document.querySelector("#steam-theme"),
+  psColors: document.querySelector("#ps-colors"),
   settingsMessage: document.querySelector("#settings-message"),
 };
 
-applyTheme(readSettings().steamTheme);
+applyTheme(readSettings().psColors);
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -111,7 +111,7 @@ elements.openSettings.addEventListener("click", () => {
   elements.legacyPsn.value = settings.legacyPsn;
   elements.autoLoadDefault.checked = settings.autoLoad;
   elements.showLegacyId.checked = settings.showLegacyId;
-  elements.steamTheme.checked = settings.steamTheme;
+  elements.psColors.checked = settings.psColors;
   elements.settingsMessage.textContent = "";
   elements.settingsDialog.showModal();
 });
@@ -148,10 +148,10 @@ elements.settingsForm.addEventListener("submit", async (event) => {
     legacyPsn,
     autoLoad: Boolean(defaultPsn && elements.autoLoadDefault.checked),
     showLegacyId: Boolean(legacyPsn && elements.showLegacyId.checked),
-    steamTheme: elements.steamTheme.checked,
+    psColors: elements.psColors.checked,
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  applyTheme(settings.steamTheme);
+  applyTheme(settings.psColors);
   elements.settingsDialog.close();
   if (state.primary) renderProfile(state.primary);
 
@@ -427,6 +427,7 @@ function gameCard(game) {
   const played = node("div");
   played.append(
     node("p", "text-xl font-black tabular-nums", formatDuration(game.playTimeSeconds)),
+    node("p", "mt-1 text-xs text-slate-500", `First played ${formatDate(game.firstPlayedAt)}`),
     node("p", "text-xs text-slate-500", `Last played ${formatDate(game.lastPlayedAt)}`),
   );
   const trophy = game.trophies
@@ -505,7 +506,12 @@ function readSettings() {
         typeof saved.legacyPsn === "string" ? saved.legacyPsn : "",
       autoLoad: Boolean(saved.autoLoad),
       showLegacyId: Boolean(saved.showLegacyId),
-      steamTheme: Boolean(saved.steamTheme),
+      psColors:
+        typeof saved.psColors === "boolean"
+          ? saved.psColors
+          : typeof saved.steamTheme === "boolean"
+            ? !saved.steamTheme
+            : false,
     };
   } catch {
     return {
@@ -513,15 +519,15 @@ function readSettings() {
       legacyPsn: "",
       autoLoad: false,
       showLegacyId: false,
-      steamTheme: false,
+      psColors: false,
     };
   }
 }
 
-function applyTheme(useSteamTheme) {
-  document.documentElement.dataset.theme = useSteamTheme
-    ? "steam"
-    : "playstation";
+function applyTheme(usePsColors) {
+  document.documentElement.dataset.theme = usePsColors
+    ? "playstation"
+    : "steam";
 }
 
 function updateUrl() {

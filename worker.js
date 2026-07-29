@@ -63,7 +63,7 @@ export default {
       }
 
       const refresh = url.searchParams.get("refresh") === "1";
-      const cacheKey = `player:v2:${onlineId.toLowerCase()}`;
+      const cacheKey = `player:v3:${onlineId.toLowerCase()}`;
       if (!refresh && !npssoOverride) {
         const cached = await env.PSN_CACHE.get(cacheKey, "json");
         if (cached) {
@@ -145,7 +145,11 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
       name: game.localizedName || game.name,
       imageUrl: game.localizedImageUrl || game.imageUrl || "",
       category: game.category,
-      platform: platformLabel(game.category),
+      platform: platformLabel(
+        game.category,
+        game.titleId,
+        game.concept?.titleIds,
+      ),
       service: game.service,
       playCount: game.playCount || 0,
       playDuration: game.playDuration,
@@ -349,10 +353,28 @@ function bestAvatar(avatars = []) {
   return avatars.at(-1)?.url || avatars[0]?.url || "";
 }
 
-function platformLabel(category = "") {
+export function platformLabel(category = "", titleId = "", conceptTitleIds = []) {
   if (category.includes("ps5")) return "PS5";
   if (category.includes("ps4")) return "PS4";
   if (category.includes("pspc")) return "PC";
+  const ids = [titleId, ...(conceptTitleIds || [])]
+    .map((value) => String(value).toUpperCase())
+    .filter(Boolean);
+  if (ids.some((id) => id.startsWith("PPSA"))) return "PS5";
+  if (ids.some((id) => id.startsWith("CUSA"))) return "PS4";
+  if (ids.some((id) => /^PCS[A-Z]/.test(id))) return "PS Vita";
+  if (ids.some((id) => /^(NPUH|NPEG|NPJH|NPZH|UL[EUJS])/.test(id))) {
+    return "PSP";
+  }
+  if (
+    ids.some((id) =>
+      /^(NPUB|NPEB|NPJB|NPJA|NPHB|BLUS|BLES|BLJM|BLJS|BCUS|BCES|BCJS|BCKS)/.test(
+        id,
+      ),
+    )
+  ) {
+    return "PS3";
+  }
   return "Unknown";
 }
 
