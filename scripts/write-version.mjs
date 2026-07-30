@@ -42,4 +42,9 @@ await Promise.all([
     "../version.js",
     "../about-settings.js",
   ]),
+  versionScripts("compare/index.html", [
+    "../version.js",
+    "../compare.js",
+    "../about-settings.js",
+  ]),
 ]);

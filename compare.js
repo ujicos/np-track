@@ -1,0 +1,330 @@
+import { formatDuration, isShareFactoryTitle } from "./utils.js";
+import {
+  cacheGameIcons,
+  getProfileSnapshot,
+  saveProfileSnapshot,
+} from "./offline-cache.js";
+
+const API_BASE_URL = "https://np-track-api.ujicos.workers.dev";
+const SETTINGS_KEY = "np-track.settings";
+
+const form = document.querySelector("#compare-form");
+const firstInput = document.querySelector("#player-one");
+const secondInput = document.querySelector("#player-two");
+const button = document.querySelector("#compare-button");
+const message = document.querySelector("#compare-message");
+const results = document.querySelector("#compare-results");
+const summary = document.querySelector("#comparison-summary");
+const cards = document.querySelector("#compare-cards");
+const sharedStats = document.querySelector("#shared-stats");
+const sharedGames = document.querySelector("#shared-games");
+const sharedGameCount = document.querySelector("#shared-game-count");
+
+const initialSettings = readSettings();
+const initialParams = new URLSearchParams(location.search);
+firstInput.value = initialParams.get("first") || initialSettings.defaultPsn;
+secondInput.value = initialParams.get("second") || "";
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const firstId = firstInput.value.trim();
+  const secondId = secondInput.value.trim();
+  if (firstId.toLowerCase() === secondId.toLowerCase()) {
+    setMessage("Enter two different PSN online IDs.", true);
+    return;
+  }
+
+  setLoading(true);
+  setMessage("Loading both accounts …");
+  results.classList.add("hidden");
+  try {
+    const [first, second] = await Promise.all([
+      fetchPlayerWithOffline(firstId, legacyIdFor(firstId)),
+      fetchPlayerWithOffline(secondId, legacyIdFor(secondId)),
+    ]);
+    renderComparison(first, second);
+    const params = new URLSearchParams();
+    params.set("first", first.player.onlineId);
+    params.set("second", second.player.onlineId);
+    history.replaceState({}, "", `${location.pathname}?${params}`);
+    setMessage(
+      first.meta?.localOffline || second.meta?.localOffline
+        ? "Showing the latest saved data because the network is unavailable."
+        : "",
+    );
+  } catch (error) {
+    setMessage(error.message || "Could not compare these accounts.", true);
+  } finally {
+    setLoading(false);
+  }
+});
+
+async function fetchPlayerWithOffline(onlineId, legacyOnlineId = "") {
+  try {
+    const headers = legacyOnlineId ? { "X-PSN-Legacy-ID": legacyOnlineId } : {};
+    const response = await fetch(
+      `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
+      { headers },
+    );
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Could not load “${onlineId}”.`);
+    try {
+      await saveProfileSnapshot(data);
+    } catch {
+      // Storage restrictions must not prevent a live comparison.
+    }
+    void cacheImages(data);
+    return data;
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+    let snapshot = null;
+    try {
+      snapshot = await getProfileSnapshot(onlineId);
+    } catch {
+      // Preserve the network error if local storage is unavailable.
+    }
+    if (!snapshot?.data) throw new Error(`The network is unavailable and “${onlineId}” is not saved for offline use.`);
+    return {
+      ...snapshot.data,
+      meta: { ...snapshot.data.meta, localOffline: true },
+    };
+  }
+}
+
+function renderComparison(first, second) {
+  const settings = readSettings();
+  const firstGames = visibleGames(first.games, settings);
+  const secondGames = visibleGames(second.games, settings);
+  const firstTotal = totalPlaytime(firstGames);
+  const secondTotal = totalPlaytime(secondGames);
+  const difference = Math.abs(firstTotal - secondTotal);
+  const leader =
+    firstTotal === secondTotal
+      ? "Both accounts have the same recorded playtime."
+      : `${firstTotal > secondTotal ? first.player.onlineId : second.player.onlineId} has ${formatDuration(difference)} more recorded playtime.`;
+  summary.textContent = leader;
+
+  cards.replaceChildren(
+    profileCard(first, firstGames, firstTotal),
+    profileCard(second, secondGames, secondTotal),
+  );
+
+  const matches = matchGames(firstGames, secondGames);
+  sharedStats.replaceChildren(
+    statCard("Games in common", matches.length),
+    statCard(`Only ${first.player.onlineId}`, firstGames.length - matches.length),
+    statCard(`Only ${second.player.onlineId}`, secondGames.length - matches.length),
+  );
+  sharedGameCount.textContent = `${matches.length} shared ${matches.length === 1 ? "game" : "games"}`;
+  sharedGames.replaceChildren(
+    ...(matches.length
+      ? matches.map(({ firstGame, secondGame }) =>
+          sharedGameRow(first, second, firstGame, secondGame),
+        )
+      : [emptyState("No matching visible games were found.")]),
+  );
+  results.classList.remove("hidden");
+}
+
+function profileCard(data, games, playtime) {
+  const article = node("article", "glass rounded-3xl border border-white/10 p-5 sm:p-6");
+  const heading = node("div", "flex min-w-0 items-center gap-4");
+  const avatar = document.createElement("img");
+  avatar.className = "h-20 w-20 shrink-0 rounded-2xl object-contain";
+  avatar.src = data.player.avatarUrl || avatarFallback(data.player.onlineId);
+  avatar.alt = `Profile picture for ${data.player.onlineId}`;
+  const identity = node("div", "min-w-0");
+  identity.append(
+    node("h2", "truncate text-2xl font-black", data.player.onlineId),
+    node("p", "mt-1 text-sm text-slate-400", presenceLabel(data.presence)),
+  );
+  heading.append(avatar, identity);
+
+  const stats = node("div", "mt-6 grid grid-cols-3 gap-3");
+  stats.append(
+    miniStat("Playtime", formatDuration(playtime)),
+    miniStat("Games", String(games.length)),
+    miniStat("Trophies", trophyTotal(data.stats)),
+  );
+  article.append(heading, stats);
+  return article;
+}
+
+function sharedGameRow(first, second, firstGame, secondGame) {
+  const firstSeconds = Number(firstGame.playTimeSeconds || 0);
+  const secondSeconds = Number(secondGame.playTimeSeconds || 0);
+  const difference = Math.abs(firstSeconds - secondSeconds);
+  const row = node(
+    "article",
+    "glass grid gap-4 rounded-2xl border border-white/10 p-4 sm:grid-cols-[auto_minmax(0,1fr)_minmax(14rem,auto)] sm:items-center",
+  );
+  const image = document.createElement("img");
+  image.className = "h-16 w-16 rounded-xl object-contain";
+  image.src = firstGame.imageUrl || secondGame.imageUrl || avatarFallback(firstGame.name);
+  image.alt = "";
+  const title = node("h3", "font-bold", firstGame.name || secondGame.name);
+  const comparison = node("div", "grid gap-1 text-left text-sm sm:text-right");
+  comparison.append(
+    gameTimeLine(first.player.onlineId, firstSeconds),
+    gameTimeLine(second.player.onlineId, secondSeconds),
+    node(
+      "p",
+      "mt-1 text-xs text-slate-500",
+      difference
+        ? `${firstSeconds > secondSeconds ? first.player.onlineId : second.player.onlineId} +${formatDuration(difference)}`
+        : "Equal playtime",
+    ),
+  );
+  row.append(image, title, comparison);
+  return row;
+}
+
+function matchGames(firstGames, secondGames) {
+  const secondByName = new Map();
+  secondGames.forEach((game) => {
+    const key = normaliseTitle(game.name);
+    if (!secondByName.has(key)) secondByName.set(key, game);
+  });
+  return firstGames
+    .map((firstGame) => ({
+      firstGame,
+      secondGame: secondByName.get(normaliseTitle(firstGame.name)),
+    }))
+    .filter(({ secondGame }) => Boolean(secondGame))
+    .sort(
+      (left, right) =>
+        Number(right.firstGame.playTimeSeconds || 0) +
+        Number(right.secondGame.playTimeSeconds || 0) -
+        Number(left.firstGame.playTimeSeconds || 0) -
+        Number(left.secondGame.playTimeSeconds || 0),
+    );
+}
+
+function gameTimeLine(onlineId, seconds) {
+  const line = node("p", "text-slate-300");
+  line.append(
+    node("span", "text-slate-500", `${onlineId}: `),
+    document.createTextNode(formatDuration(seconds)),
+  );
+  return line;
+}
+
+function statCard(label, value) {
+  const card = node("article", "glass rounded-2xl border border-white/10 p-5 text-center");
+  card.append(
+    node("p", "text-2xl font-black", String(value)),
+    node("p", "mt-1 truncate text-xs text-slate-500", label),
+  );
+  return card;
+}
+
+function miniStat(label, value) {
+  const wrapper = node("div", "min-w-0 rounded-xl bg-black/10 p-3");
+  wrapper.append(
+    node("p", "truncate text-xs text-slate-500", label),
+    node("p", "mt-1 truncate text-sm font-bold sm:text-base", value),
+  );
+  return wrapper;
+}
+
+function trophyTotal(stats = {}) {
+  const earned = stats.trophySummary?.earnedTrophies;
+  if (!earned) return "Hidden";
+  return String(
+    Object.values(earned).reduce(
+      (total, amount) => total + Number(amount || 0),
+      0,
+    ),
+  );
+}
+
+function presenceLabel(presence = {}) {
+  if (presence.status === "playing") {
+    const game = presence.currentGames?.[0]?.name;
+    return game ? `Playing ${game}` : "Playing now";
+  }
+  if (presence.status === "online") return "Online";
+  if (presence.status === "offline") return "Offline or activity hidden";
+  return "Status unavailable";
+}
+
+function visibleGames(games = [], settings = readSettings()) {
+  return settings.hideShareFactory
+    ? games.filter((game) => !isShareFactoryTitle(game.name))
+    : [...games];
+}
+
+function totalPlaytime(games) {
+  return games.reduce(
+    (total, game) => total + Number(game.playTimeSeconds || 0),
+    0,
+  );
+}
+
+function normaliseTitle(value) {
+  return String(value || "")
+    .toLocaleLowerCase("en")
+    .replace(/[®™©]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function legacyIdFor(onlineId) {
+  const settings = readSettings();
+  return settings.defaultPsn.toLowerCase() === onlineId.toLowerCase()
+    ? settings.legacyPsn
+    : "";
+}
+
+function cacheImages(data) {
+  return cacheGameIcons([
+    data.player?.avatarUrl,
+    ...(data.games || []).map((game) => game.imageUrl),
+  ]).catch(() => {});
+}
+
+function readSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return {
+      defaultPsn: typeof saved.defaultPsn === "string" ? saved.defaultPsn : "",
+      legacyPsn: typeof saved.legacyPsn === "string" ? saved.legacyPsn : "",
+      hideShareFactory:
+        typeof saved.hideShareFactory === "boolean" ? saved.hideShareFactory : true,
+    };
+  } catch {
+    return { defaultPsn: "", legacyPsn: "", hideShareFactory: true };
+  }
+}
+
+function setLoading(loading) {
+  button.disabled = loading;
+  button.textContent = loading ? "Comparing …" : "Compare";
+}
+
+function setMessage(text, error = false) {
+  message.textContent = text;
+  message.className = `mx-auto mt-4 min-h-6 max-w-4xl whitespace-pre-line text-center text-sm ${
+    error ? "text-rose-400" : "text-slate-400"
+  }`;
+}
+
+function emptyState(text) {
+  return node(
+    "p",
+    "glass rounded-2xl border border-white/10 p-6 text-center text-slate-400",
+    text,
+  );
+}
+
+function avatarFallback(name) {
+  const letter = encodeURIComponent((name || "P")[0].toUpperCase());
+  return `https://placehold.co/160x160/0d1728/2d9cff?text=${letter}`;
+}
+
+function node(tag, className = "", text = "") {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== "") element.textContent = text;
+  return element;
+}

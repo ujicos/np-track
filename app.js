@@ -99,12 +99,7 @@ positionTopGames(initialSettings);
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const requestedId = elements.input.value.trim();
-  const mode =
-    state.primary &&
-    state.primary.player.onlineId.toLowerCase() !== requestedId.toLowerCase()
-      ? "comparison"
-      : "primary";
-  await loadPlayer(requestedId, mode);
+  await loadPlayer(requestedId, "primary");
 });
 
 elements.toggleNpsso.addEventListener("click", () => {
@@ -1063,9 +1058,7 @@ function setLoading(loading, message = "") {
   button.disabled = loading;
   button.textContent = loading
     ? "Loading …"
-    : state.primary
-      ? "Compare"
-      : "Explore";
+    : "Explore";
   if (message) setMessage(message);
 }
 
@@ -1308,7 +1301,6 @@ function updateUrl() {
 async function initialise() {
   const params = new URLSearchParams(location.search);
   const initialPlayer = params.get("player");
-  const initialComparison = params.get("compare");
   const settings = readSettings();
   const primaryId =
     initialPlayer ||
@@ -1319,10 +1311,6 @@ async function initialise() {
   if (!primaryId) return;
   elements.input.value = primaryId;
   await loadPlayer(primaryId, "primary");
-  if (initialComparison && state.primary) {
-    elements.input.value = initialComparison;
-    await loadPlayer(initialComparison, "comparison");
-  }
 }
 
 setInterval(updateLivePlaytime, LIVE_TIME_INTERVAL_MS);
