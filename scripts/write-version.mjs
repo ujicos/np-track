@@ -23,22 +23,23 @@ const version = {
 
 await writeFile("version.json", `${JSON.stringify(version, null, 2)}\n`);
 
-async function versionScript(file, script) {
-  const source = await readFile(file, "utf8");
-  const escapedScript = script.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(
-    `(${escapedScript})(?:\\?v=[^"']+)?`,
-    "g",
-  );
-  await writeFile(
-    file,
-    source.replace(pattern, `$1?v=${version.version}`),
-  );
+async function versionScripts(file, scripts) {
+  let source = await readFile(file, "utf8");
+  for (const script of scripts) {
+    const escapedScript = script.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(
+      `(${escapedScript})(?:\\?v=[^"']+)?`,
+      "g",
+    );
+    source = source.replace(pattern, `$1?v=${version.version}`);
+  }
+  await writeFile(file, source);
 }
 
 await Promise.all([
-  versionScript("index.html", "./version.js"),
-  versionScript("index.html", "./app.js"),
-  versionScript("about/index.html", "../version.js"),
-  versionScript("about/index.html", "../about-settings.js"),
+  versionScripts("index.html", ["./version.js", "./app.js"]),
+  versionScripts("about/index.html", [
+    "../version.js",
+    "../about-settings.js",
+  ]),
 ]);
