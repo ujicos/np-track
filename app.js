@@ -1,5 +1,4 @@
 import {
-  earnedTrophiesFirst,
   formatDuration,
   formatLongDuration,
   isShareFactoryTitle,
@@ -930,10 +929,13 @@ async function fetchTrophyDetails(npCommunicationId) {
 function renderTrophyDetails(data) {
   state.activeTrophyData = data;
   const earnedCount = data.trophies.filter((trophy) => trophy.earned).length;
-  const orderedTrophies = earnedTrophiesFirst(
-    data.trophies,
-    readSettings().trophyOriginalOrder,
-  );
+  const orderedTrophies = [...data.trophies];
+  if (!readSettings().trophyOriginalOrder) {
+    orderedTrophies.sort(
+      (left, right) =>
+        Number(Boolean(right.earned)) - Number(Boolean(left.earned)),
+    );
+  }
   const visibleTrophies = state.trophyEarnedOnly
     ? orderedTrophies.filter((trophy) => trophy.earned)
     : orderedTrophies;

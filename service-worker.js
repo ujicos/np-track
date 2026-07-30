@@ -1,4 +1,4 @@
-const CACHE_NAME = "np-track-shell-v9";
+const CACHE_NAME = "np-track-shell-v10";
 const IMAGE_CACHE_NAME = "np-track-images-v1";
 const RUNTIME_CACHE_NAME = "np-track-runtime-v1";
 const EXTERNAL_RUNTIME_URLS = ["https://cdn.tailwindcss.com/"];
