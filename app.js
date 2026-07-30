@@ -1,8 +1,16 @@
 import { formatDuration, normaliseNpssoInput } from "./utils.js";
+import {
+  cacheGameIcons,
+  clearOfflineCache,
+  getProfileSnapshot,
+  saveProfileSnapshot,
+} from "./offline-cache.js";
 
 const API_BASE_URL = "https://np-track-api.ujicos.workers.dev";
 const PAGE_SIZE = 24;
 const SETTINGS_KEY = "np-track.settings";
+const PROFILE_REFRESH_INTERVAL_MS = 60_000;
+const LIVE_TIME_INTERVAL_MS = 5_000;
 
 const state = {
   primary: null,
@@ -14,6 +22,9 @@ const state = {
   sessionNpsso: "",
   trophyEarnedOnly: false,
   activeTrophyData: null,
+  refreshRunning: false,
+  livePlaytimeBase: 0,
+  livePlaytimeStartedAt: 0,
 };
 
 const elements = {
@@ -38,7 +49,9 @@ const elements = {
   comparisonCards: document.querySelector("#comparison-cards"),
   comparisonNote: document.querySelector("#comparison-note"),
   clearComparison: document.querySelector("#clear-comparison"),
+  topGamesSection: document.querySelector("#top-games-section"),
   topGames: document.querySelector("#top-games"),
+  gamesSection: document.querySelector("#games-section"),
   gameSearch: document.querySelector("#game-search"),
   gameSort: document.querySelector("#game-sort"),
   gameCount: document.querySelector("#game-count"),
@@ -54,7 +67,9 @@ const elements = {
   autoLoadDefault: document.querySelector("#auto-load-default"),
   showLegacyId: document.querySelector("#show-legacy-id"),
   showTrophyGames: document.querySelector("#show-trophy-games"),
+  topGamesOnTop: document.querySelector("#top-games-on-top"),
   psColors: document.querySelector("#ps-colors"),
+  clearLocalCache: document.querySelector("#clear-local-cache"),
   settingsMessage: document.querySelector("#settings-message"),
   trophyDialog: document.querySelector("#trophy-dialog"),
   trophyBack: document.querySelector("#trophy-back"),
@@ -67,7 +82,9 @@ const elements = {
   earnedOnly: document.querySelector("#earned-only"),
 };
 
-applyTheme(readSettings().psColors);
+const initialSettings = readSettings();
+applyTheme(initialSettings.psColors);
+positionTopGames(initialSettings);
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -125,6 +142,7 @@ elements.openSettings.addEventListener("click", () => {
   elements.autoLoadDefault.checked = settings.autoLoad;
   elements.showLegacyId.checked = settings.showLegacyId;
   elements.showTrophyGames.checked = settings.showTrophyGames;
+  elements.topGamesOnTop.checked = settings.topGamesOnTop;
   elements.psColors.checked = settings.psColors;
   elements.settingsMessage.textContent = "";
   elements.settingsDialog.showModal();
@@ -140,6 +158,22 @@ elements.cancelSettings.addEventListener("click", () => {
 
 elements.settingsDialog.addEventListener("click", (event) => {
   if (event.target === elements.settingsDialog) elements.settingsDialog.close();
+});
+
+elements.clearLocalCache.addEventListener("click", async () => {
+  elements.clearLocalCache.disabled = true;
+  elements.settingsMessage.className = "mt-3 min-h-5 text-xs text-slate-500";
+  elements.settingsMessage.textContent = "Clearing offline cache …";
+  try {
+    await clearOfflineCache();
+    elements.settingsMessage.textContent =
+      "Saved profiles and downloaded game icons were cleared.";
+  } catch {
+    elements.settingsMessage.className = "mt-3 min-h-5 text-xs text-rose-400";
+    elements.settingsMessage.textContent = "The offline cache could not be cleared.";
+  } finally {
+    elements.clearLocalCache.disabled = false;
+  }
 });
 
 elements.closeTrophies.addEventListener("click", () => {
@@ -180,10 +214,12 @@ elements.settingsForm.addEventListener("submit", async (event) => {
     autoLoad: Boolean(defaultPsn && elements.autoLoadDefault.checked),
     showLegacyId: Boolean(legacyPsn && elements.showLegacyId.checked),
     showTrophyGames: elements.showTrophyGames.checked,
+    topGamesOnTop: elements.topGamesOnTop.checked,
     psColors: elements.psColors.checked,
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   applyTheme(settings.psColors);
+  positionTopGames(settings);
   elements.settingsDialog.close();
   if (state.primary) {
     renderProfile(state.primary);
@@ -218,28 +254,23 @@ async function loadPlayer(onlineId, mode = "primary") {
       settings.defaultPsn.toLowerCase() === onlineId.toLowerCase()
         ? settings.legacyPsn
         : "";
-    const data = await fetchPlayer(onlineId, npssoOverride, legacyOnlineId);
+    const data = await fetchPlayerWithOffline(
+      onlineId,
+      npssoOverride,
+      legacyOnlineId,
+    );
     if (mode === "comparison") {
       state.comparison = data;
       renderComparison();
     } else {
-      state.primary = data;
-      state.comparison = null;
-      state.games = data.games || [];
-      state.visible = PAGE_SIZE;
-      state.query = "";
-      elements.gameSearch.value = "";
-      renderProfile(data);
-      renderStats(data);
-      renderTopGames();
-      renderGames();
-      renderComparison();
-      elements.results.classList.remove("hidden");
+      applyPrimaryProfile(data, { resetView: true });
     }
 
     const cacheMessage =
-      data.meta.cache === "BYPASS"
-        ? `Updated ${formatDate(data.meta.fetchedAt)} with the temporary override.\nNothing was cached.`
+      data.meta.localOffline
+        ? `Offline snapshot from ${formatDate(data.meta.localSavedAt)}.\nIt will update automatically when the connection returns.`
+        : data.meta.cache === "BYPASS"
+          ? `Updated ${formatDate(data.meta.fetchedAt)} with the temporary override.\nSaved only on this device for offline use.`
         : data.meta.cache === "HIT"
           ? `Showing a cached snapshot from ${formatDate(data.meta.fetchedAt)}.`
           : `Updated ${formatDate(data.meta.fetchedAt)}.`;
@@ -269,15 +300,84 @@ async function fetchPlayer(onlineId, npssoOverride, legacyOnlineId = "") {
   const headers = {};
   if (npssoOverride) headers["X-NPSSO-Override"] = npssoOverride;
   if (legacyOnlineId) headers["X-PSN-Legacy-ID"] = legacyOnlineId;
-  const response = await fetch(
-    `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
-    {
-      headers,
-    },
-  );
+  let response;
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/api/player/${encodeURIComponent(onlineId)}`,
+      { headers },
+    );
+  } catch {
+    const error = new Error("The network is unavailable.");
+    error.isNetworkError = true;
+    throw error;
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Could not load this profile.");
   return data;
+}
+
+async function fetchPlayerWithOffline(
+  onlineId,
+  npssoOverride,
+  legacyOnlineId = "",
+) {
+  try {
+    const data = await fetchPlayer(onlineId, npssoOverride, legacyOnlineId);
+    try {
+      await saveProfileSnapshot(data);
+    } catch {
+      // A storage quota or private-browsing restriction must not block results.
+    }
+    void cacheProfileImages(data);
+    return data;
+  } catch (error) {
+    if (!error.isNetworkError) throw error;
+    let snapshot = null;
+    try {
+      snapshot = await getProfileSnapshot(onlineId);
+    } catch {
+      // Keep the original network error when local storage is unavailable.
+    }
+    if (!snapshot?.data) throw error;
+    return {
+      ...snapshot.data,
+      meta: {
+        ...snapshot.data.meta,
+        cache: "LOCAL",
+        localOffline: true,
+        localSavedAt: snapshot.savedAt,
+      },
+    };
+  }
+}
+
+function applyPrimaryProfile(data, { resetView = false } = {}) {
+  state.primary = data;
+  if (resetView) {
+    state.comparison = null;
+    state.visible = PAGE_SIZE;
+    state.query = "";
+    elements.gameSearch.value = "";
+  }
+  state.games = data.games || [];
+  setLivePlaytimeBaseline(data);
+  renderProfile(data);
+  renderStats(data);
+  renderTopGames();
+  renderGames();
+  renderComparison();
+  positionTopGames();
+  elements.results.classList.remove("hidden");
+}
+
+function cacheProfileImages(data) {
+  const urls = [
+    data.player?.avatarUrl,
+    ...(data.games || []).map((game) => game.imageUrl),
+    ...(data.presence?.currentGames || []).map((game) => game.iconUrl),
+    ...(data.trophyTitles || []).map((title) => title.iconUrl),
+  ];
+  return cacheGameIcons(urls).catch(() => {});
 }
 
 function renderProfile(data) {
@@ -299,7 +399,7 @@ function renderProfile(data) {
   if (presence.status === "playing" || presence.status === "online") {
     elements.presenceLabel.replaceChildren(
       document.createTextNode(
-        presence.status === "playing" ? "Playing now " : "Online ",
+        presence.status === "playing" ? "Playing now on " : "Online on ",
       ),
       platformBadge(presence.platform),
     );
@@ -317,14 +417,21 @@ function renderProfile(data) {
   if (game) {
     const image = document.createElement("img");
     image.className =
-      "game-cover-glow h-14 w-14 shrink-0 rounded-xl bg-slate-800 object-cover";
+      "game-icon game-cover-glow h-14 w-14 shrink-0 rounded-xl";
     image.src = game.iconUrl || avatarFallback(game.name);
     image.alt = "";
     const body = node("div", "min-w-0 flex-1");
+    const playingOn = node(
+      "div",
+      "flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-400",
+    );
+    playingOn.append(
+      document.createTextNode("Playing now on"),
+      platformBadge(game.platform),
+    );
     body.append(
-      node("p", "text-xs font-semibold text-slate-400", "Playing now"),
+      playingOn,
       node("p", "mt-0.5 truncate font-bold", game.name),
-      platformBadge(game.platform, "mt-2"),
     );
     const row = node("div", "flex min-w-0 items-center gap-3");
     row.append(image, body);
@@ -338,7 +445,11 @@ function renderStats(data) {
   const cards = [
     {
       label: "Total playtime",
-      value: formatDuration(stats.totalPlayTimeSeconds),
+      value: formatDuration(currentLivePlaytime()),
+      detail: state.livePlaytimeStartedAt
+        ? "Estimated live while playing"
+        : "",
+      livePlaytime: true,
     },
     {
       label: "Games played",
@@ -361,7 +472,7 @@ function renderStats(data) {
   });
 
   elements.stats.replaceChildren(
-    ...cards.map(({ label, value, detail, action }) => {
+    ...cards.map(({ label, value, detail, action, livePlaytime }) => {
       const card = node(
         action ? "button" : "article",
         `glass rounded-2xl border border-white/10 p-5 text-left ${
@@ -372,10 +483,13 @@ function renderStats(data) {
         card.type = "button";
         card.addEventListener("click", action);
       }
-      card.append(
-        node("p", "text-sm text-slate-400", label),
-        node("p", "mt-2 text-2xl font-black tabular-nums", value),
+      const valueNode = node(
+        "p",
+        "mt-2 text-2xl font-black tabular-nums",
+        value,
       );
+      if (livePlaytime) valueNode.dataset.livePlaytime = "true";
+      card.append(node("p", "text-sm text-slate-400", label), valueNode);
       if (detail) {
         card.append(node("p", "mt-1 text-xs text-slate-600", detail));
       }
@@ -452,7 +566,7 @@ function renderTopGames() {
       const item = node("article", "glass flex items-center gap-4 rounded-2xl border border-white/10 p-4");
       const rank = node("span", "w-8 text-center text-xl font-black text-slate-600", String(index + 1).padStart(2, "0"));
       const image = document.createElement("img");
-      image.className = "game-cover-glow h-14 w-14 rounded-xl bg-slate-800 object-cover";
+      image.className = "game-icon game-cover-glow h-14 w-14 rounded-xl";
       image.src = game.imageUrl;
       image.alt = "";
       image.loading = "lazy";
@@ -495,9 +609,9 @@ function renderGames() {
 function gameCard(game) {
   const card = node("article", "game-card glass overflow-hidden rounded-2xl border border-white/10");
   const image = document.createElement("img");
-  image.className = "game-cover-glow aspect-video w-full bg-slate-800 object-cover";
-  image.src = game.screenshotUrl || game.imageUrl;
-  image.alt = `Cover art for ${game.name}`;
+  image.className = "game-icon game-cover-glow w-full";
+  image.src = game.imageUrl;
+  image.alt = `Game icon for ${game.name}`;
   image.loading = "lazy";
   const body = node("div", "p-5");
   body.append(
@@ -635,15 +749,18 @@ function renderTrophyOverview() {
 }
 
 function openGameTrophies(game) {
-  const title = (state.primary?.trophyTitles || []).find(
+  const matchedTitle = (state.primary?.trophyTitles || []).find(
     (item) =>
       item.npCommunicationId === game.trophies?.npCommunicationId,
-  ) || {
-    npCommunicationId: game.trophies?.npCommunicationId,
-    name: game.name,
-    iconUrl: game.imageUrl,
-    platform: game.platform,
-    progress: game.trophies?.progress || 0,
+  );
+  const title = {
+    ...(matchedTitle || {}),
+    npCommunicationId:
+      matchedTitle?.npCommunicationId || game.trophies?.npCommunicationId,
+    name: matchedTitle?.name || game.name,
+    iconUrl: game.imageUrl || matchedTitle?.iconUrl || "",
+    platform: game.platform || matchedTitle?.platform,
+    progress: matchedTitle?.progress ?? game.trophies?.progress ?? 0,
   };
   if (!elements.trophyDialog.open) elements.trophyDialog.showModal();
   void openTrophyTitle(title);
@@ -925,6 +1042,7 @@ function readSettings() {
       autoLoad: Boolean(saved.autoLoad),
       showLegacyId: Boolean(saved.showLegacyId),
       showTrophyGames: Boolean(saved.showTrophyGames),
+      topGamesOnTop: Boolean(saved.topGamesOnTop),
       psColors:
         typeof saved.psColors === "boolean"
           ? saved.psColors
@@ -939,6 +1057,7 @@ function readSettings() {
       autoLoad: false,
       showLegacyId: false,
       showTrophyGames: false,
+      topGamesOnTop: false,
       psColors: false,
     };
   }
@@ -948,6 +1067,83 @@ function applyTheme(usePsColors) {
   document.documentElement.dataset.theme = usePsColors
     ? "playstation"
     : "steam";
+}
+
+function positionTopGames(settings = readSettings()) {
+  if (!elements.topGamesSection || !elements.gamesSection) return;
+  if (settings.topGamesOnTop) {
+    elements.stats.after(elements.topGamesSection);
+  } else {
+    elements.gamesSection.after(elements.topGamesSection);
+  }
+}
+
+function setLivePlaytimeBaseline(data) {
+  state.livePlaytimeBase = Number(data.stats?.totalPlayTimeSeconds || 0);
+  state.livePlaytimeStartedAt =
+    data.presence?.status === "playing" &&
+    !data.meta?.localOffline &&
+    navigator.onLine
+      ? Date.now()
+      : 0;
+}
+
+function currentLivePlaytime() {
+  if (!state.livePlaytimeStartedAt) return state.livePlaytimeBase;
+  const elapsed = Math.floor(
+    (Date.now() - state.livePlaytimeStartedAt) / LIVE_TIME_INTERVAL_MS,
+  );
+  return state.livePlaytimeBase + elapsed * (LIVE_TIME_INTERVAL_MS / 1000);
+}
+
+function updateLivePlaytime() {
+  const value = document.querySelector("[data-live-playtime]");
+  if (value) value.textContent = formatDuration(currentLivePlaytime());
+}
+
+function freezeLivePlaytime() {
+  state.livePlaytimeBase = currentLivePlaytime();
+  state.livePlaytimeStartedAt = 0;
+  updateLivePlaytime();
+}
+
+async function refreshPrimaryProfile() {
+  if (
+    state.refreshRunning ||
+    !state.primary ||
+    !navigator.onLine ||
+    document.visibilityState !== "visible"
+  ) {
+    return;
+  }
+  state.refreshRunning = true;
+  try {
+    const settings = readSettings();
+    const onlineId = state.primary.player.onlineId;
+    const legacyOnlineId =
+      settings.defaultPsn.toLowerCase() === onlineId.toLowerCase()
+        ? settings.legacyPsn
+        : "";
+    const data = await fetchPlayer(
+      onlineId,
+      state.sessionNpsso,
+      legacyOnlineId,
+    );
+    try {
+      await saveProfileSnapshot(data);
+    } catch {
+      // Continue showing fresh PSN data if offline storage is unavailable.
+    }
+    void cacheProfileImages(data);
+    if (data.meta?.fetchedAt !== state.primary.meta?.fetchedAt) {
+      applyPrimaryProfile(data);
+      setMessage(`Updated ${formatDate(data.meta.fetchedAt)}.`);
+    }
+  } catch {
+    // Keep the current or offline snapshot visible until the next refresh.
+  } finally {
+    state.refreshRunning = false;
+  }
 }
 
 function updateUrl() {
@@ -979,5 +1175,15 @@ async function initialise() {
     await loadPlayer(initialComparison, "comparison");
   }
 }
+
+setInterval(updateLivePlaytime, LIVE_TIME_INTERVAL_MS);
+setInterval(() => void refreshPrimaryProfile(), PROFILE_REFRESH_INTERVAL_MS);
+addEventListener("online", () => void refreshPrimaryProfile());
+addEventListener("offline", freezeLivePlaytime);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    void refreshPrimaryProfile();
+  }
+});
 
 void initialise();

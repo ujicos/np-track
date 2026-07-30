@@ -116,7 +116,7 @@ export default {
         );
       }
 
-      const cacheKey = `player:v4:${onlineId.toLowerCase()}`;
+      const cacheKey = `player:v5:${onlineId.toLowerCase()}`;
       if (!refresh && !npssoOverride) {
         const cached = await env.PSN_CACHE.get(cacheKey, "json");
         if (cached) {
@@ -188,22 +188,20 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
 
   const trophyTitles =
     trophiesResult.status === "fulfilled" ? trophiesResult.value : [];
-  const trophyByName = new Map(
-    trophyTitles.map((title) => [normaliseName(title.trophyTitleName), title]),
-  );
   const rawGames = gamesResult.status === "fulfilled" ? gamesResult.value : [];
   const games = rawGames.map((game) => {
-    const trophy = trophyByName.get(normaliseName(game.localizedName || game.name));
+    const gamePlatform = platformLabel(
+      game.category,
+      game.titleId,
+      game.concept?.titleIds,
+    );
+    const trophy = matchTrophyTitle(game, trophyTitles, gamePlatform);
     return {
       titleId: game.titleId,
       name: game.localizedName || game.name,
       imageUrl: game.localizedImageUrl || game.imageUrl || "",
       category: game.category,
-      platform: platformLabel(
-        game.category,
-        game.titleId,
-        game.concept?.titleIds,
-      ),
+      platform: gamePlatform,
       service: game.service,
       playCount: game.playCount || 0,
       playDuration: game.playDuration,
@@ -262,7 +260,12 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
       trophyGames: trophyTitles.length,
       trophySummary,
     },
-    trophyTitles: trophyTitles.map(mapTrophyTitle),
+    trophyTitles: trophyTitles.map((title) => {
+      const matchingGame = games.find(
+        (game) => game.trophies?.npCommunicationId === title.npCommunicationId,
+      );
+      return mapTrophyTitle(title, matchingGame?.platform);
+    }),
     games,
     meta: {
       fetchedAt: new Date().toISOString(),
@@ -362,12 +365,13 @@ async function buildTrophyResponse(
   };
 }
 
-function mapTrophyTitle(title) {
+function mapTrophyTitle(title, platformOverride = null) {
   return {
     npCommunicationId: title.npCommunicationId,
     name: title.trophyTitleName,
     iconUrl: title.trophyTitleIconUrl || "",
-    platform: platformLabelFromValue(title.trophyTitlePlatform),
+    platform:
+      platformOverride || platformLabelFromValue(title.trophyTitlePlatform),
     service: title.npServiceName,
     progress: Number(title.progress || 0),
     earned: title.earnedTrophies || {},
@@ -512,9 +516,28 @@ export function platformLabel(category = "", titleId = "", conceptTitleIds = [])
   if (category.includes("ps5")) return "PS5";
   if (category.includes("ps4")) return "PS4";
   if (category.includes("pspc")) return "PC";
-  const ids = [titleId, ...(conceptTitleIds || [])]
+  const directId = String(titleId).toUpperCase();
+  if (directId.startsWith("PPSA")) return "PS5";
+  if (directId.startsWith("CUSA")) return "PS4";
+  if (/^PCS[A-Z]/.test(directId)) return "PS Vita";
+  if (/^(NPUH|NPEG|NPJH|NPZH|UL[EUJS])/.test(directId)) return "PSP";
+  if (
+    /^(NPUB|NPEB|NPJB|NPJA|NPHB|BLUS|BLES|BLJM|BLJS|BCUS|BCES|BCJS|BCKS)/.test(
+      directId,
+    )
+  ) {
+    return "PS4 / PS5";
+  }
+
+  const ids = [...(conceptTitleIds || [])]
     .map((value) => String(value).toUpperCase())
     .filter(Boolean);
+  if (
+    ids.some((id) => id.startsWith("PPSA")) &&
+    ids.some((id) => id.startsWith("CUSA"))
+  ) {
+    return "PS4 / PS5";
+  }
   if (ids.some((id) => id.startsWith("PPSA"))) return "PS5";
   if (ids.some((id) => id.startsWith("CUSA"))) return "PS4";
   if (ids.some((id) => /^PCS[A-Z]/.test(id))) return "PS Vita";
@@ -537,12 +560,31 @@ function platformLabelFromValue(value = "") {
   const platform = String(value).trim();
   if (!platform) return null;
   const lower = platform.toLowerCase();
+  if (lower.includes("ps4") && lower.includes("ps5")) return "PS4 / PS5";
   if (lower.includes("ps5")) return "PS5";
   if (lower.includes("ps4")) return "PS4";
   if (lower.includes("ps3")) return "PS3";
   if (lower.includes("vita")) return "PS Vita";
   if (lower.includes("pc")) return "PC";
   return platform.toUpperCase();
+}
+
+export function matchTrophyTitle(game, trophyTitles = [], gamePlatform = null) {
+  const gameName = normaliseName(game.localizedName || game.name);
+  const candidates = trophyTitles.filter(
+    (title) => normaliseName(title.trophyTitleName) === gameName,
+  );
+  if (candidates.length < 2) return candidates[0] || null;
+
+  const expectedPlatform =
+    gamePlatform ||
+    platformLabel(game.category, game.titleId, game.concept?.titleIds);
+  return (
+    candidates.find(
+      (title) =>
+        platformLabelFromValue(title.trophyTitlePlatform) === expectedPlatform,
+    ) || candidates[0]
+  );
 }
 
 function normaliseName(value = "") {

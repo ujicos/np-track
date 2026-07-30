@@ -1,9 +1,16 @@
-const CACHE_NAME = "np-track-shell-v2";
+const CACHE_NAME = "np-track-shell-v3";
+const IMAGE_CACHE_NAME = "np-track-images-v1";
+const RUNTIME_CACHE_NAME = "np-track-runtime-v1";
+const EXTERNAL_RUNTIME_URLS = ["https://cdn.tailwindcss.com/"];
 const APP_SHELL = [
   "./",
   "./index.html",
   "./about/",
   "./about/index.html",
+  "./app.js",
+  "./offline-cache.js",
+  "./utils.js",
+  "./version.js",
   "./offline.html",
   "./manifest.webmanifest",
   "./assets/playstation-mark.svg",
@@ -14,7 +21,10 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+    Promise.all([
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+      cacheExternalRuntime(),
+    ]),
   );
   self.skipWaiting();
 });
@@ -24,10 +34,25 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter(
+              (key) =>
+                key !== CACHE_NAME &&
+                key !== IMAGE_CACHE_NAME &&
+                key !== RUNTIME_CACHE_NAME,
+            )
+            .map((key) => caches.delete(key)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "CLEAR_IMAGE_CACHE") {
+    event.waitUntil(caches.delete(IMAGE_CACHE_NAME));
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -35,8 +60,19 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  if (request.destination === "image" && url.protocol === "https:") {
+    event.respondWith(staleWhileRevalidateImage(request));
+    return;
+  }
+  if (
+    request.destination === "script" &&
+    url.hostname === "cdn.tailwindcss.com"
+  ) {
+    event.respondWith(staleWhileRevalidateRuntime(request));
+    return;
+  }
 
+  if (url.origin !== self.location.origin) return;
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request, "./offline.html"));
     return;
@@ -47,10 +83,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.destination === "image") {
-    event.respondWith(staleWhileRevalidate(request));
-  }
 });
+
+async function cacheExternalRuntime() {
+  const cache = await caches.open(RUNTIME_CACHE_NAME);
+  await Promise.allSettled(
+    EXTERNAL_RUNTIME_URLS.map(async (url) => {
+      const request = new Request(url, { mode: "no-cors" });
+      const response = await fetch(request);
+      await cache.put(request, response);
+    }),
+  );
+}
 
 async function networkFirst(request, fallbackUrl) {
   const cache = await caches.open(CACHE_NAME);
@@ -63,12 +107,28 @@ async function networkFirst(request, fallbackUrl) {
   }
 }
 
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(CACHE_NAME);
+async function staleWhileRevalidateImage(request) {
+  const cache = await caches.open(IMAGE_CACHE_NAME);
   const cached = await cache.match(request);
   const fresh = fetch(request)
-    .then((response) => {
-      if (response.ok) void cache.put(request, response.clone());
+    .then(async (response) => {
+      if (response.ok || response.type === "opaque") {
+        await cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => null);
+  return cached || (await fresh) || Response.error();
+}
+
+async function staleWhileRevalidateRuntime(request) {
+  const cache = await caches.open(RUNTIME_CACHE_NAME);
+  const cached = await cache.match(request);
+  const fresh = fetch(request)
+    .then(async (response) => {
+      if (response.ok || response.type === "opaque") {
+        await cache.put(request, response.clone());
+      }
       return response;
     })
     .catch(() => null);

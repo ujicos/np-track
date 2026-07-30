@@ -157,7 +157,7 @@
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
           <h2 class="text-2xl font-black">What is the NPSSO override?</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
-            The search page can use a temporary NPSSO value for one request. np-track does not save it, place it in the URL, or read from and write to shared profile cache while it is in use.
+            The search page can use a temporary NPSSO value without placing it in the URL or saving the secret. The returned profile data may be kept on this device for offline use and can be removed from Settings.
           </p>
           <p class="mt-3 text-sm leading-relaxed text-amber-200/80">
             An NPSSO value is equivalent to a password. Only enter it on a deployment you control and trust.
@@ -173,6 +173,18 @@
           <h2 class="text-2xl font-black">What does “NP” mean?</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
             Sony uses NP throughout its network APIs and debug terminology, including NP environment and NP communication ID. It refers to the PlayStation network platform or network-service layer. Sony does not appear to publish a formal standalone expansion; PSN explicitly means PlayStation Network.
+          </p>
+        </article>
+        <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
+          <h2 class="text-2xl font-black">What works offline?</h2>
+          <p class="mt-4 leading-relaxed text-slate-400">
+            Profiles you previously opened and their downloaded game icons can be shown without a connection. np-track uses the latest saved snapshot and refreshes it after the device reconnects.
+          </p>
+        </article>
+        <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
+          <h2 class="text-2xl font-black">Is live playtime exact?</h2>
+          <p class="mt-4 leading-relaxed text-slate-400">
+            While PSN reports that a user is playing, np-track advances the displayed total every five seconds as a local estimate. It periodically syncs back to PSN’s recorded total instead of sending an API request every five seconds.
           </p>
         </article>
       </section>

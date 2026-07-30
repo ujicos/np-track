@@ -47,6 +47,23 @@
       .game-cover-glow {
         box-shadow: 10px 0 28px rgba(45, 156, 255, .18), 0 10px 28px rgba(0, 0, 0, .3);
       }
+      .game-icon {
+        aspect-ratio: 1;
+        object-fit: contain;
+        background: rgba(7, 11, 20, .72);
+      }
+      #games { grid-template-columns: minmax(0, 1fr); }
+      #games .game-card {
+        display: grid;
+        grid-template-columns: 8rem minmax(0, 1fr);
+        align-items: center;
+      }
+      #games .game-card > img {
+        width: 8rem;
+        height: 8rem;
+        margin-left: .75rem;
+        border-radius: .85rem;
+      }
       .trophy-row { transition: background-color .18s ease, border-color .18s ease; }
       .trophy-row:hover { background: rgba(45, 156, 255, .07); border-color: rgba(45, 156, 255, .35); }
       .platform-badge {
@@ -159,16 +176,6 @@
       }
       [data-theme="steam"] .game-card:hover { background: #22384c; transform: none; }
       [data-theme="steam"] #games { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
-      [data-theme="steam"] #games .game-card {
-        display: grid;
-        grid-template-columns: minmax(10rem, 13.5rem) minmax(0, 1fr);
-      }
-      [data-theme="steam"] #games .game-card > img {
-        aspect-ratio: 184 / 69;
-        height: 100%;
-        min-height: 7.25rem;
-        border-radius: 1rem 0 0 1rem;
-      }
       [data-theme="steam"] #games .game-card > div { padding: 1rem 1.25rem; }
       [data-theme="steam"] #games .game-card h3 { color: #e5e7eb; }
       button, a, input, select { touch-action: manipulation; }
@@ -212,10 +219,12 @@
         .top-game-row { flex-direction: column; gap: .1rem; align-items: flex-start; }
         .top-game-row p { max-width: 100%; }
         #games { gap: .7rem; }
-        [data-theme="steam"] #games .game-card { grid-template-columns: 5.75rem minmax(0, 1fr); }
-        [data-theme="steam"] #games .game-card > img {
-          min-height: 100%;
-          border-radius: 1rem 0 0 1rem;
+        #games .game-card { grid-template-columns: 5.5rem minmax(0, 1fr); }
+        #games .game-card > img {
+          width: 5rem;
+          height: 5rem;
+          margin-left: .5rem;
+          border-radius: .7rem;
         }
         [data-theme="steam"] #games .game-card > div { padding: .8rem; }
         [data-theme="steam"] #games .game-card h3 {
@@ -303,9 +312,18 @@
           <span>Show the Trophy games counter. Hidden by default.</span>
         </label>
         <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input id="top-games-on-top" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+          <span>Show Top 10 above the full game list. Otherwise it stays at the bottom.</span>
+        </label>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="ps-colors" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span><strong class="text-slate-100">Enable PS colors</strong><br><span class="text-xs text-slate-500">Use the brighter PS4/PS5 blue palette.</span></span>
         </label>
+        <div class="mt-5 rounded-2xl border border-white/10 bg-white/[.025] p-4">
+          <p class="text-sm font-bold">Offline cache</p>
+          <p class="mt-1 text-xs leading-relaxed text-slate-500">Saved profile snapshots and downloaded game icons are available when the network is unavailable.</p>
+          <button id="clear-local-cache" type="button" class="mt-3 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300 hover:border-cyan">Clear cache</button>
+        </div>
         <p id="settings-message" class="mt-3 min-h-5 text-xs text-slate-500" role="status"></p>
         <div class="mt-6 flex justify-end gap-3">
           <button id="cancel-settings" type="button" class="rounded-xl border border-white/10 px-5 py-2.5 font-bold text-slate-300 hover:border-cyan">Cancel</button>
@@ -412,7 +430,7 @@
 
         <section id="stats" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"></section>
 
-        <section class="mt-12">
+        <section id="top-games-section" class="mt-12">
           <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 class="mt-1 text-3xl font-black">Top 10 games</h2>
@@ -422,7 +440,7 @@
           <div id="top-games" class="mt-5 grid gap-3 lg:grid-cols-2"></div>
         </section>
 
-        <section class="mt-12">
+        <section id="games-section" class="mt-12">
           <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <h2 class="mt-1 text-3xl font-black">Games</h2>
@@ -439,7 +457,7 @@
             </div>
           </div>
           <p id="game-count" class="mt-4 text-sm text-slate-500"></p>
-          <div id="games" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+          <div id="games" class="mt-5 grid gap-4"></div>
           <div class="mt-8 text-center">
             <button id="show-more" class="hidden rounded-xl border border-white/10 px-5 py-3 font-bold hover:border-cyan">Show more</button>
           </div>
