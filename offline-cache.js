@@ -107,3 +107,9 @@ export async function clearOfflineCache() {
     type: "CLEAR_IMAGE_CACHE",
   });
 }
+
+export async function getOfflineCacheUsage() {
+  if (!navigator.storage?.estimate) return null;
+  const estimate = await navigator.storage.estimate();
+  return Number.isFinite(estimate.usage) ? estimate.usage : null;
+}

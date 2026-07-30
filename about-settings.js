@@ -1,4 +1,7 @@
-import { clearOfflineCache } from "./offline-cache.js";
+import {
+  clearOfflineCache,
+  getOfflineCacheUsage,
+} from "./offline-cache.js";
 
 const SETTINGS_KEY = "np-track.settings";
 const ids = [
@@ -22,6 +25,7 @@ const dialog = document.querySelector("#settings-dialog");
 const form = document.querySelector("#settings-form");
 const message = document.querySelector("#settings-message");
 const clearButton = document.querySelector("#clear-local-cache");
+const cacheUsage = document.querySelector("#cache-usage");
 
 function readSettings() {
   try {
@@ -82,6 +86,7 @@ applyTheme(readSettings().psColors);
 document.querySelector("#open-settings").addEventListener("click", () => {
   fillForm(readSettings());
   dialog.showModal();
+  void refreshCacheUsage();
 });
 document.querySelector("#close-settings").addEventListener("click", () => {
   dialog.close();
@@ -99,6 +104,7 @@ clearButton.addEventListener("click", async () => {
   message.textContent = "Clearing offline cache …";
   try {
     await clearOfflineCache();
+    await refreshCacheUsage();
     message.textContent =
       "Saved profiles and downloaded game icons were cleared.";
   } catch {
@@ -108,6 +114,25 @@ clearButton.addEventListener("click", async () => {
     clearButton.disabled = false;
   }
 });
+
+async function refreshCacheUsage() {
+  cacheUsage.textContent = "calculating…";
+  try {
+    const bytes = await getOfflineCacheUsage();
+    cacheUsage.textContent =
+      bytes === null ? "unavailable" : `~${formatStorage(bytes)}`;
+  } catch {
+    cacheUsage.textContent = "unavailable";
+  }
+}
+
+function formatStorage(bytes) {
+  const gigabyte = 1024 ** 3;
+  const megabyte = 1024 ** 2;
+  if (bytes >= gigabyte) return `${(bytes / gigabyte).toFixed(2)} GB`;
+  if (bytes < megabyte / 10) return "<0.1 MB";
+  return `${(bytes / megabyte).toFixed(1)} MB`;
+}
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();

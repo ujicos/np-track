@@ -7,6 +7,7 @@ import {
 import {
   cacheGameIcons,
   clearOfflineCache,
+  getOfflineCacheUsage,
   getProfileSnapshot,
   saveProfileSnapshot,
 } from "./offline-cache.js";
@@ -78,6 +79,7 @@ const elements = {
   hideShareFactory: document.querySelector("#hide-share-factory"),
   psColors: document.querySelector("#ps-colors"),
   clearLocalCache: document.querySelector("#clear-local-cache"),
+  cacheUsage: document.querySelector("#cache-usage"),
   settingsMessage: document.querySelector("#settings-message"),
   trophyDialog: document.querySelector("#trophy-dialog"),
   trophyBack: document.querySelector("#trophy-back"),
@@ -156,6 +158,7 @@ elements.openSettings.addEventListener("click", () => {
   elements.psColors.checked = settings.psColors;
   elements.settingsMessage.textContent = "";
   elements.settingsDialog.showModal();
+  void refreshCacheUsage();
 });
 
 elements.closeSettings.addEventListener("click", () => {
@@ -176,6 +179,7 @@ elements.clearLocalCache.addEventListener("click", async () => {
   elements.settingsMessage.textContent = "Clearing offline cache …";
   try {
     await clearOfflineCache();
+    await refreshCacheUsage();
     elements.settingsMessage.textContent =
       "Saved profiles and downloaded game icons were cleared.";
   } catch {
@@ -185,6 +189,25 @@ elements.clearLocalCache.addEventListener("click", async () => {
     elements.clearLocalCache.disabled = false;
   }
 });
+
+async function refreshCacheUsage() {
+  elements.cacheUsage.textContent = "calculating…";
+  try {
+    const bytes = await getOfflineCacheUsage();
+    elements.cacheUsage.textContent =
+      bytes === null ? "unavailable" : `~${formatStorage(bytes)}`;
+  } catch {
+    elements.cacheUsage.textContent = "unavailable";
+  }
+}
+
+function formatStorage(bytes) {
+  const gigabyte = 1024 ** 3;
+  const megabyte = 1024 ** 2;
+  if (bytes >= gigabyte) return `${(bytes / gigabyte).toFixed(2)} GB`;
+  if (bytes < megabyte / 10) return "<0.1 MB";
+  return `${(bytes / megabyte).toFixed(1)} MB`;
+}
 
 elements.closeTrophies.addEventListener("click", () => {
   elements.trophyDialog.close();

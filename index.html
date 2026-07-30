@@ -80,6 +80,11 @@
         object-fit: contain;
         opacity: .9;
       }
+      .platform-wordmark-ps5 {
+        width: auto;
+        height: .82rem;
+        max-height: none;
+      }
       .platform-wordmark-ps3,
       .platform-wordmark-ps-vita { filter: invert(1); }
       .trophy-dialog-header {
@@ -293,7 +298,7 @@
       </div>
     </header>
 
-    <dialog id="settings-dialog" class="max-h-[90vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-3xl border border-white/10 bg-panel p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
+    <dialog id="settings-dialog" class="max-h-[90vh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-3xl border border-white/10 bg-panel p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
       <form id="settings-form" method="dialog" class="p-6 sm:p-7">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -311,38 +316,40 @@
           class="mt-2 w-full rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan"
           placeholder="Used only if the current ID cannot resolve" autocomplete="off" />
         <p class="mt-2 text-xs leading-relaxed text-slate-500">This resolves renamed accounts through their stable account ID. It stays in this browser.</p>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <div class="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="auto-load-default" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Load this profile automatically when np-track opens.</span>
         </label>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="show-legacy-id" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Show the previous PSN ID on the profile. Hidden by default.</span>
         </label>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="show-trophy-games" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Show the Trophy games counter. Hidden by default.</span>
         </label>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="top-games-on-top" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Show Top 10 above the full game list. Otherwise it stays at the bottom.</span>
         </label>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="trophy-original-order" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Keep PSN’s original trophy-game order. Otherwise completed games appear first.</span>
         </label>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="hide-share-factory" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span>Hide Share Factory Studio from playtime lists and totals. Enabled by default.</span>
         </label>
-        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-300 sm:col-span-2">
           <input id="ps-colors" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
           <span><strong class="text-slate-100">Enable PS colors</strong><br><span class="text-xs text-slate-500">Use the brighter PS4/PS5 blue palette.</span></span>
         </label>
+        </div>
         <div class="mt-5 rounded-2xl border border-white/10 bg-white/[.025] p-4">
           <p class="text-sm font-bold">Offline cache</p>
           <p class="mt-1 text-xs leading-relaxed text-slate-500">Saved profile snapshots and downloaded game icons are available when the network is unavailable.</p>
-          <button id="clear-local-cache" type="button" class="mt-3 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300 hover:border-cyan">Clear cache</button>
+          <button id="clear-local-cache" type="button" class="mt-3 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-300 hover:border-cyan">Clear cache · <span id="cache-usage">…</span></button>
         </div>
         <p id="settings-message" class="mt-3 min-h-5 text-xs text-slate-500" role="status"></p>
         <div class="mt-6 flex justify-end gap-3">
