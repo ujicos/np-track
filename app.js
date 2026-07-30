@@ -1086,8 +1086,8 @@ function platformBadge(value, extraClass = "") {
     const asset = {
       PS5: "ps5-wordmark.svg",
       PS4: "ps4-wordmark.svg",
-      PS3: "ps3-wordmark.svg",
-      "PS Vita": "psvita-wordmark.svg",
+      PS3: "ps3-mark.svg",
+      "PS Vita": "psvita-mark.svg",
     }[platform];
     image.className = `platform-wordmark platform-wordmark-${platform
       .toLowerCase()

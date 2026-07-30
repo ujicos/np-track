@@ -1,4 +1,4 @@
-const CACHE_NAME = "np-track-shell-v5";
+const CACHE_NAME = "np-track-shell-v6";
 const IMAGE_CACHE_NAME = "np-track-images-v1";
 const RUNTIME_CACHE_NAME = "np-track-runtime-v1";
 const EXTERNAL_RUNTIME_URLS = ["https://cdn.tailwindcss.com/"];
@@ -15,10 +15,10 @@ const APP_SHELL = [
   "./offline.html",
   "./manifest.webmanifest",
   "./assets/playstation-mark.svg",
-  "./assets/ps3-wordmark.svg",
+  "./assets/ps3-mark.svg",
   "./assets/ps4-wordmark.svg",
   "./assets/ps5-wordmark.svg",
-  "./assets/psvita-wordmark.svg",
+  "./assets/psvita-mark.svg",
   "./assets/icons/app-icon-192.png",
   "./assets/icons/app-icon-512.png",
   "./assets/icons/app-icon-maskable-512.png",
