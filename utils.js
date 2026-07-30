@@ -44,6 +44,14 @@ export function isShareFactoryTitle(value) {
   return compact === "sharefactory" || compact === "sharefactorystudio";
 }
 
+export function earnedTrophiesFirst(trophies, preserveOrder = false) {
+  const ordered = [...(trophies || [])];
+  if (preserveOrder) return ordered;
+  return ordered.sort(
+    (left, right) => Number(Boolean(right.earned)) - Number(Boolean(left.earned)),
+  );
+}
+
 export function normaliseNpssoInput(value) {
   const trimmed = value.trim();
   if (!trimmed) return "";

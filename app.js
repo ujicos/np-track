@@ -1,4 +1,5 @@
 import {
+  earnedTrophiesFirst,
   formatDuration,
   formatLongDuration,
   isShareFactoryTitle,
@@ -929,9 +930,13 @@ async function fetchTrophyDetails(npCommunicationId) {
 function renderTrophyDetails(data) {
   state.activeTrophyData = data;
   const earnedCount = data.trophies.filter((trophy) => trophy.earned).length;
+  const orderedTrophies = earnedTrophiesFirst(
+    data.trophies,
+    readSettings().trophyOriginalOrder,
+  );
   const visibleTrophies = state.trophyEarnedOnly
-    ? data.trophies.filter((trophy) => trophy.earned)
-    : data.trophies;
+    ? orderedTrophies.filter((trophy) => trophy.earned)
+    : orderedTrophies;
   elements.trophyStatus.className = "min-h-6 py-2 text-sm text-slate-400";
   elements.trophyStatus.textContent = state.trophyEarnedOnly
     ? `${formatNumber(earnedCount)} earned trophies shown.`

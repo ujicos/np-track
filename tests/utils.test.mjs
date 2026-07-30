@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  earnedTrophiesFirst,
   formatDuration,
   formatLongDuration,
   isShareFactoryTitle,
@@ -44,6 +45,23 @@ test("recognises Sony's Share Factory title variants", () => {
   assert.equal(isShareFactoryTitle("SHAREfactory™ Studio"), true);
   assert.equal(isShareFactoryTitle("Share Factory"), true);
   assert.equal(isShareFactoryTitle("Share Play"), false);
+});
+
+test("puts earned trophies before locked trophies without changing group order", () => {
+  const trophies = [
+    { trophyId: 1, earned: false },
+    { trophyId: 2, earned: true },
+    { trophyId: 3, earned: false },
+    { trophyId: 4, earned: true },
+  ];
+  assert.deepEqual(
+    earnedTrophiesFirst(trophies).map((trophy) => trophy.trophyId),
+    [2, 4, 1, 3],
+  );
+  assert.deepEqual(
+    earnedTrophiesFirst(trophies, true).map((trophy) => trophy.trophyId),
+    [1, 2, 3, 4],
+  );
 });
 
 test("accepts a raw NPSSO cookie value", () => {
