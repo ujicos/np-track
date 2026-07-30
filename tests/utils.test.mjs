@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   formatDuration,
   formatLongDuration,
+  isShareFactoryTitle,
   normaliseNpssoInput,
 } from "../utils.js";
 
@@ -36,6 +37,13 @@ test("describes long playtime as approximate calendar-sized units", () => {
     formatLongDuration(2 * 86400 + 3 * 3600 + 4 * 60 + 5),
     "2 days, 3 hours, 4 minutes, 5 seconds",
   );
+});
+
+test("recognises Sony's Share Factory title variants", () => {
+  assert.equal(isShareFactoryTitle("Share Factory Studio"), true);
+  assert.equal(isShareFactoryTitle("SHAREfactory™ Studio"), true);
+  assert.equal(isShareFactoryTitle("Share Factory"), true);
+  assert.equal(isShareFactoryTitle("Share Play"), false);
 });
 
 test("accepts a raw NPSSO cookie value", () => {

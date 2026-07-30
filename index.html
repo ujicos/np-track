@@ -74,13 +74,14 @@
       }
       .platform-wordmark {
         display: inline-block;
-        width: auto;
-        height: .72rem;
+        width: 2.75rem;
+        height: auto;
+        max-height: .95rem;
+        object-fit: contain;
         opacity: .9;
       }
-      .platform-wordmark-ps5 { transform: scale(.85); transform-origin: center; }
-      .platform-wordmark-ps3 { height: .8rem; filter: invert(1); }
-      .platform-wordmark-ps-vita { height: .72rem; filter: invert(1); }
+      .platform-wordmark-ps3,
+      .platform-wordmark-ps-vita { filter: invert(1); }
       .trophy-dialog-header {
         background:
           linear-gradient(to bottom, rgba(13, 23, 40, .98) 0%, rgba(13, 23, 40, .88) 68%, transparent 100%);
@@ -332,7 +333,7 @@
         </label>
         <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="hide-share-factory" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
-          <span>Hide Share Factory and Share Factory Studio from playtime lists and totals.</span>
+          <span>Hide Share Factory Studio from playtime lists and totals. Enabled by default.</span>
         </label>
         <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
           <input id="ps-colors" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
@@ -488,6 +489,7 @@
       </div>
     </main>
     <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs leading-relaxed text-slate-600">
+      <p class="mb-3"><a href="https://buymeacoffee.com/consolation" target="_blank" rel="noopener" class="font-bold text-cyan hover:text-white">Support np-track ↗</a></p>
       <p>Not affiliated with Sony™ Interactive Entertainment.</p>
       <p>Available data depends on each profile’s PSN privacy settings.</p>
       <p>(c) ujicos 2026</p>

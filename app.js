@@ -1,6 +1,7 @@
 import {
   formatDuration,
   formatLongDuration,
+  isShareFactoryTitle,
   normaliseNpssoInput,
 } from "./utils.js";
 import {
@@ -1124,14 +1125,7 @@ function avatarFallback(name) {
 
 function visibleGames(games, settings = readSettings()) {
   if (!settings.hideShareFactory) return [...games];
-  return games.filter(
-    (game) =>
-      !/^share factory(?: studio)?$/i.test(
-        String(game.name || "")
-          .replace(/[®™©]/g, "")
-          .trim(),
-      ),
-  );
+  return games.filter((game) => !isShareFactoryTitle(game.name));
 }
 
 function displayedStats(data) {

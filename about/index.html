@@ -138,7 +138,7 @@
           <label class="flex cursor-pointer items-start gap-3"><input id="show-trophy-games" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" /><span>Show the Trophy games counter.</span></label>
           <label class="flex cursor-pointer items-start gap-3"><input id="top-games-on-top" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" /><span>Show Top 10 above the full game list.</span></label>
           <label class="flex cursor-pointer items-start gap-3"><input id="trophy-original-order" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" /><span>Keep PSN’s original trophy-game order.</span></label>
-          <label class="flex cursor-pointer items-start gap-3"><input id="hide-share-factory" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" /><span>Hide Share Factory from lists and totals.</span></label>
+          <label class="flex cursor-pointer items-start gap-3"><input id="hide-share-factory" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" /><span>Hide Share Factory Studio from lists and totals. Enabled by default.</span></label>
           <label class="flex cursor-pointer items-start gap-3"><input id="ps-colors" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" /><span>Enable PS colors.</span></label>
         </div>
         <div class="mt-5 rounded-2xl border border-white/10 bg-white/[.025] p-4">
@@ -220,7 +220,7 @@
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
           <h2 class="text-2xl font-black">What works offline?</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
-            Profiles you previously opened and their downloaded game icons can be shown without a connection. np-track uses the latest saved snapshot and refreshes it after the device reconnects.
+            Profiles you previously opened and their downloaded game icons can be shown without a connection. np-track uses the latest saved snapshot and refreshes it after the device reconnects. Open Settings and select “Clear cache” whenever you want to remove saved profiles and game icons from this device.
           </p>
         </article>
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
@@ -238,7 +238,7 @@
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
           <h2 class="text-2xl font-black">Which platforms and games are shown?</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
-            Platform marks are shown for PS3, PS Vita, PS4, and PS5 when PSN identifies them. Share Factory is hidden by default so utility time does not affect lists or totals; it can be restored in Settings.
+            Platform marks are shown for PS3, PS Vita, PS4, and PS5 when PSN identifies them. Share Factory Studio is hidden by default so utility time does not affect lists or totals; it can be restored in Settings.
           </p>
         </article>
         <article class="glass rounded-3xl border border-white/10 p-7 sm:p-8">
@@ -249,12 +249,14 @@
         </article>
       </section>
 
-      <div class="mt-12 text-center">
+      <div class="mt-12 flex flex-wrap justify-center gap-3 text-center">
         <a href="../" class="inline-flex rounded-xl bg-electric px-6 py-3 font-bold transition hover:bg-cyan hover:text-ink">Search a profile</a>
+        <a href="https://buymeacoffee.com/consolation" target="_blank" rel="noopener" class="inline-flex rounded-xl border border-white/10 px-6 py-3 font-bold text-slate-300 transition hover:border-cyan hover:text-white">Support np-track ↗</a>
       </div>
     </main>
 
     <footer class="mx-auto max-w-7xl px-5 py-10 text-center text-xs leading-relaxed text-slate-600">
+      <p class="mb-3"><a href="https://buymeacoffee.com/consolation" target="_blank" rel="noopener" class="font-bold text-cyan hover:text-white">Support np-track ↗</a></p>
       <p>Not affiliated with Sony™ Interactive Entertainment.</p>
       <p>Available data depends on each profile’s PSN privacy settings.</p>
       <p>(c) ujicos 2026</p>

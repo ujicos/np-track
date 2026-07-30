@@ -116,7 +116,7 @@ export default {
         );
       }
 
-      const cacheKey = `player:v5:${onlineId.toLowerCase()}`;
+      const cacheKey = `player:v6:${onlineId.toLowerCase()}`;
       if (!refresh && !npssoOverride) {
         const cached = await env.PSN_CACHE.get(cacheKey, "json");
         if (cached) {
@@ -268,6 +268,7 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
         title,
         matchingGame?.platform,
         matchingGame?.conceptId,
+        matchingGame?.imageUrl,
       );
     }),
     games,
@@ -373,11 +374,12 @@ function mapTrophyTitle(
   title,
   platformOverride = null,
   conceptIdOverride = null,
+  iconUrlOverride = null,
 ) {
   return {
     npCommunicationId: title.npCommunicationId,
     name: title.trophyTitleName,
-    iconUrl: title.trophyTitleIconUrl || "",
+    iconUrl: iconUrlOverride || title.trophyTitleIconUrl || "",
     platform:
       platformOverride || platformLabelFromValue(title.trophyTitlePlatform),
     service: title.npServiceName,

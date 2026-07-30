@@ -37,6 +37,13 @@ export function formatLongDuration(value) {
   ].join(", ");
 }
 
+export function isShareFactoryTitle(value) {
+  const compact = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  return compact === "sharefactory" || compact === "sharefactorystudio";
+}
+
 export function normaliseNpssoInput(value) {
   const trimmed = value.trim();
   if (!trimmed) return "";
