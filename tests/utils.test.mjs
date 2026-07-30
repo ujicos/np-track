@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { formatDuration, normaliseNpssoInput } from "../utils.js";
+import {
+  formatDuration,
+  formatLongDuration,
+  normaliseNpssoInput,
+} from "../utils.js";
 
 test("formats single-digit playtime without padding", () => {
   assert.equal(formatDuration(3661), "1h 1m 1s");
@@ -17,6 +21,21 @@ test("does not pad smaller minute or second components", () => {
 
 test("keeps the full hour count without commas or milliseconds", () => {
   assert.equal(formatDuration(923 * 3600 + 48 * 60 + 46.99), "923h 48m 46s");
+});
+
+test("describes long playtime as approximate calendar-sized units", () => {
+  assert.equal(
+    formatLongDuration(2 * 365 * 86400 + 3 * 30 * 86400 + 4 * 86400),
+    "2 years, 3 months, 4 days",
+  );
+  assert.equal(
+    formatLongDuration(2 * 30 * 86400 + 5 * 86400),
+    "2 months, 5 days",
+  );
+  assert.equal(
+    formatLongDuration(2 * 86400 + 3 * 3600 + 4 * 60 + 5),
+    "2 days, 3 hours, 4 minutes, 5 seconds",
+  );
 });
 
 test("accepts a raw NPSSO cookie value", () => {

@@ -264,7 +264,11 @@ async function buildPlayerResponse(onlineId, npsso, legacyOnlineId = "") {
       const matchingGame = games.find(
         (game) => game.trophies?.npCommunicationId === title.npCommunicationId,
       );
-      return mapTrophyTitle(title, matchingGame?.platform);
+      return mapTrophyTitle(
+        title,
+        matchingGame?.platform,
+        matchingGame?.conceptId,
+      );
     }),
     games,
     meta: {
@@ -365,7 +369,11 @@ async function buildTrophyResponse(
   };
 }
 
-function mapTrophyTitle(title, platformOverride = null) {
+function mapTrophyTitle(
+  title,
+  platformOverride = null,
+  conceptIdOverride = null,
+) {
   return {
     npCommunicationId: title.npCommunicationId,
     name: title.trophyTitleName,
@@ -378,6 +386,7 @@ function mapTrophyTitle(title, platformOverride = null) {
     defined: title.definedTrophies || {},
     hasGroups: Boolean(title.hasTrophyGroups),
     lastUpdatedAt: title.lastUpdatedDateTime || null,
+    conceptId: conceptIdOverride || null,
   };
 }
 
@@ -473,7 +482,8 @@ function mapPresence(response) {
     titleId: game.npTitleId,
     name: game.titleName,
     platform: platformLabelFromValue(game.launchPlatform || game.format),
-    iconUrl: game.conceptIconUrl || game.npTitleIconUrl || "",
+    iconUrl: game.npTitleIconUrl || game.conceptIconUrl || "",
+    conceptId: game.conceptId || game.concept?.id || null,
   }));
 
   return {
@@ -490,7 +500,7 @@ function mapPresence(response) {
     currentGames,
     note: online
       ? null
-      : "PSN does not reveal whether “offline” means truly offline or Appearing Offline.",
+      : "The user may be hiding their activity status, or they may actually be offline.",
   };
 }
 

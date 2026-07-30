@@ -1,4 +1,8 @@
-import { formatDuration, normaliseNpssoInput } from "./utils.js";
+import {
+  formatDuration,
+  formatLongDuration,
+  normaliseNpssoInput,
+} from "./utils.js";
 import {
   cacheGameIcons,
   clearOfflineCache,
@@ -33,6 +37,7 @@ const elements = {
   message: document.querySelector("#message"),
   useNpsso: document.querySelector("#use-npsso"),
   toggleNpsso: document.querySelector("#toggle-npsso"),
+  npssoChevron: document.querySelector("#npsso-chevron"),
   npssoFields: document.querySelector("#npsso-fields"),
   npssoSecret: document.querySelector("#npsso-secret"),
   results: document.querySelector("#results"),
@@ -68,6 +73,8 @@ const elements = {
   showLegacyId: document.querySelector("#show-legacy-id"),
   showTrophyGames: document.querySelector("#show-trophy-games"),
   topGamesOnTop: document.querySelector("#top-games-on-top"),
+  trophyOriginalOrder: document.querySelector("#trophy-original-order"),
+  hideShareFactory: document.querySelector("#hide-share-factory"),
   psColors: document.querySelector("#ps-colors"),
   clearLocalCache: document.querySelector("#clear-local-cache"),
   settingsMessage: document.querySelector("#settings-message"),
@@ -103,7 +110,7 @@ elements.toggleNpsso.addEventListener("click", () => {
   elements.npssoFields.classList.toggle("hidden", !enabled);
   elements.npssoSecret.required = enabled;
   elements.toggleNpsso.setAttribute("aria-expanded", String(enabled));
-  elements.toggleNpsso.textContent = enabled ? "⌃" : "⌄";
+  elements.npssoChevron.classList.toggle("rotate-180", enabled);
   elements.toggleNpsso.setAttribute(
     "aria-label",
     `${enabled ? "Close" : "Open"} temporary NPSSO override`,
@@ -143,6 +150,8 @@ elements.openSettings.addEventListener("click", () => {
   elements.showLegacyId.checked = settings.showLegacyId;
   elements.showTrophyGames.checked = settings.showTrophyGames;
   elements.topGamesOnTop.checked = settings.topGamesOnTop;
+  elements.trophyOriginalOrder.checked = settings.trophyOriginalOrder;
+  elements.hideShareFactory.checked = settings.hideShareFactory;
   elements.psColors.checked = settings.psColors;
   elements.settingsMessage.textContent = "";
   elements.settingsDialog.showModal();
@@ -215,6 +224,8 @@ elements.settingsForm.addEventListener("submit", async (event) => {
     showLegacyId: Boolean(legacyPsn && elements.showLegacyId.checked),
     showTrophyGames: elements.showTrophyGames.checked,
     topGamesOnTop: elements.topGamesOnTop.checked,
+    trophyOriginalOrder: elements.trophyOriginalOrder.checked,
+    hideShareFactory: elements.hideShareFactory.checked,
     psColors: elements.psColors.checked,
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -222,8 +233,7 @@ elements.settingsForm.addEventListener("submit", async (event) => {
   positionTopGames(settings);
   elements.settingsDialog.close();
   if (state.primary) {
-    renderProfile(state.primary);
-    renderStats(state.primary);
+    applyPrimaryProfile(state.primary);
   }
 
   if (
@@ -281,7 +291,7 @@ async function loadPlayer(onlineId, mode = "primary") {
       elements.npssoSecret.required = false;
       elements.useNpsso.checked = false;
       elements.npssoFields.classList.add("hidden");
-      elements.toggleNpsso.textContent = "⌄";
+      elements.npssoChevron.classList.remove("rotate-180");
       elements.toggleNpsso.setAttribute("aria-expanded", "false");
       elements.toggleNpsso.setAttribute(
         "aria-label",
@@ -359,7 +369,7 @@ function applyPrimaryProfile(data, { resetView = false } = {}) {
     state.query = "";
     elements.gameSearch.value = "";
   }
-  state.games = data.games || [];
+  state.games = visibleGames(data.games || [], readSettings());
   setLivePlaytimeBaseline(data);
   renderProfile(data);
   renderStats(data);
@@ -414,6 +424,12 @@ function renderProfile(data) {
 
   const game = presence.currentGames?.[0];
   elements.currentGame.classList.toggle("hidden", !game);
+  elements.currentGame.classList.remove("cursor-pointer");
+  elements.currentGame.removeAttribute("role");
+  elements.currentGame.removeAttribute("tabindex");
+  elements.currentGame.removeAttribute("aria-label");
+  elements.currentGame.onclick = null;
+  elements.currentGame.onkeydown = null;
   if (game) {
     const image = document.createElement("img");
     image.className =
@@ -436,17 +452,20 @@ function renderProfile(data) {
     const row = node("div", "flex min-w-0 items-center gap-3");
     row.append(image, body);
     elements.currentGame.replaceChildren(row);
+    makeStoreInteractive(elements.currentGame, game, "Open current game in PlayStation Store");
   }
 }
 
 function renderStats(data) {
-  const { stats } = data;
+  const stats = displayedStats(data);
   const trophyTotal = getTrophyTotal(stats);
+  const liveTotal = currentLivePlaytime();
   const cards = [
     {
       label: "Total playtime",
-      value: formatDuration(currentLivePlaytime()),
-      detail: state.livePlaytimeStartedAt
+      value: formatDuration(liveTotal),
+      detail: formatLongDuration(liveTotal),
+      subdetail: state.livePlaytimeStartedAt
         ? "Estimated live while playing"
         : "",
       livePlaytime: true,
@@ -472,7 +491,7 @@ function renderStats(data) {
   });
 
   elements.stats.replaceChildren(
-    ...cards.map(({ label, value, detail, action, livePlaytime }) => {
+    ...cards.map(({ label, value, detail, subdetail, action, livePlaytime }) => {
       const card = node(
         action ? "button" : "article",
         `glass rounded-2xl border border-white/10 p-5 text-left ${
@@ -491,7 +510,12 @@ function renderStats(data) {
       if (livePlaytime) valueNode.dataset.livePlaytime = "true";
       card.append(node("p", "text-sm text-slate-400", label), valueNode);
       if (detail) {
-        card.append(node("p", "mt-1 text-xs text-slate-600", detail));
+        const detailNode = node("p", "mt-1 text-xs leading-relaxed text-slate-500", detail);
+        if (livePlaytime) detailNode.dataset.livePlaytimeDetail = "true";
+        card.append(detailNode);
+      }
+      if (subdetail) {
+        card.append(node("p", "mt-1 text-[11px] text-slate-600", subdetail));
       }
       return card;
     }),
@@ -514,7 +538,8 @@ function renderComparison() {
   );
 
   const difference =
-    comparison.stats.totalPlayTimeSeconds - primary.stats.totalPlayTimeSeconds;
+    displayedStats(comparison).totalPlayTimeSeconds -
+    displayedStats(primary).totalPlayTimeSeconds;
   const subject = comparison.player.onlineId;
   if (difference === 0) {
     elements.comparisonNote.textContent = "Both profiles have the same recorded playtime.";
@@ -529,7 +554,7 @@ function comparisonCard(data, label) {
   const card = node("article", "glass rounded-2xl border border-white/10 p-5");
   const heading = node("div", "flex items-center gap-3");
   const image = document.createElement("img");
-  image.className = "h-11 w-11 rounded-xl bg-slate-800 object-cover";
+  image.className = "h-11 w-11 rounded-xl bg-transparent object-contain drop-shadow-lg";
   image.src = data.player.avatarUrl || avatarFallback(data.player.onlineId);
   image.alt = "";
   const names = node("div");
@@ -540,8 +565,8 @@ function comparisonCard(data, label) {
   heading.append(image, names);
   const metrics = node("div", "mt-5 grid grid-cols-2 gap-3");
   metrics.append(
-    metric("Playtime", formatDuration(data.stats.totalPlayTimeSeconds)),
-    metric("Games", formatNumber(data.stats.totalGames)),
+    metric("Playtime", formatDuration(displayedStats(data).totalPlayTimeSeconds)),
+    metric("Games", formatNumber(displayedStats(data).totalGames)),
   );
   card.append(heading, metrics);
   return card;
@@ -580,7 +605,11 @@ function renderTopGames() {
       const bar = node("div", "h-full rounded-full bg-gradient-to-r from-electric to-cyan");
       bar.style.width = `${Math.max(2, (game.playTimeSeconds / maximum) * 100)}%`;
       track.append(bar);
-      body.append(row, track);
+      const actions = node("div", "mt-2 flex flex-wrap items-center gap-3");
+      actions.append(storeLink(game, "Store"));
+      const trophyAction = trophyButton(game);
+      if (trophyAction) actions.append(trophyAction);
+      body.append(row, track, actions);
       item.append(rank, image, body);
       makeTrophyInteractive(item, game);
       return item;
@@ -626,10 +655,10 @@ function gameCard(game) {
     node("p", "text-xs text-slate-500", `Last played ${formatDate(game.lastPlayedAt)}`),
   );
   const trophy = game.trophies
-    ? node("span", "rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300", `${game.trophies.progress}% · View trophies`)
+    ? trophyButton(game, `${game.trophies.progress}% · View trophies`)
     : node("span", "text-xs text-slate-600", "No trophy data");
   details.append(played, trophy);
-  body.append(details);
+  body.append(details, storeLink(game, "PlayStation Store"));
   card.append(image, body);
   makeTrophyInteractive(card, game);
   return card;
@@ -638,15 +667,60 @@ function gameCard(game) {
 function makeTrophyInteractive(element, game) {
   if (!game.trophies?.npCommunicationId) return;
   element.classList.add("cursor-pointer");
-  element.tabIndex = 0;
-  element.setAttribute("role", "button");
-  element.setAttribute("aria-label", `View trophies for ${game.name}`);
   element.addEventListener("click", () => openGameTrophies(game));
-  element.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
+}
+
+function trophyButton(game, label = "View trophies") {
+  if (!game.trophies?.npCommunicationId) return null;
+  const button = node(
+    "button",
+    "rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white",
+    label,
+  );
+  button.type = "button";
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
     openGameTrophies(game);
   });
+  return button;
+}
+
+function storeLink(game, label) {
+  const link = node(
+    "a",
+    "mt-2 inline-flex text-xs font-bold text-cyan hover:text-white",
+    `${label} ↗`,
+  );
+  link.href = playstationStoreUrl(game);
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.setAttribute("aria-label", `Open ${game.name} in PlayStation Store`);
+  link.addEventListener("click", (event) => event.stopPropagation());
+  link.addEventListener("keydown", (event) => event.stopPropagation());
+  return link;
+}
+
+function makeStoreInteractive(element, game, label) {
+  element.classList.add("cursor-pointer");
+  element.tabIndex = 0;
+  element.setAttribute("role", "link");
+  element.setAttribute("aria-label", label);
+  element.onclick = () => {
+    window.open(playstationStoreUrl(game), "_blank", "noopener");
+  };
+  element.onkeydown = (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    element.click();
+  };
+}
+
+function playstationStoreUrl(game) {
+  const base = "https://store.playstation.com/en-us";
+  if (game?.conceptId) {
+    return `${base}/concept/${encodeURIComponent(game.conceptId)}`;
+  }
+  return `${base}/search/${encodeURIComponent(game?.name || "")}`;
 }
 
 function openTrophyOverview() {
@@ -656,11 +730,17 @@ function openTrophyOverview() {
 }
 
 function renderTrophyOverview() {
-  const titles = [...(state.primary?.trophyTitles || [])].sort(
-    (a, b) =>
-      new Date(b.lastUpdatedAt || 0) - new Date(a.lastUpdatedAt || 0) ||
-      a.name.localeCompare(b.name, "en"),
-  );
+  const titles = [...(state.primary?.trophyTitles || [])];
+  if (!readSettings().trophyOriginalOrder) {
+    titles.sort(
+      (a, b) =>
+        Number(Number(b.progress || 0) >= 100) -
+          Number(Number(a.progress || 0) >= 100) ||
+        Number(b.progress || 0) - Number(a.progress || 0) ||
+        new Date(b.lastUpdatedAt || 0) - new Date(a.lastUpdatedAt || 0) ||
+        a.name.localeCompare(b.name, "en"),
+    );
+  }
   state.activeTrophyData = null;
   state.trophyEarnedOnly = false;
   elements.earnedOnly.checked = false;
@@ -715,7 +795,7 @@ function renderTrophyOverview() {
       button.type = "button";
       const image = document.createElement("img");
       image.className =
-        "game-cover-glow h-16 w-16 shrink-0 rounded-xl bg-slate-800 object-cover";
+        "game-icon game-cover-glow h-16 w-16 shrink-0 rounded-xl";
       image.src = title.iconUrl || avatarFallback(title.name);
       image.alt = "";
       image.loading = "lazy";
@@ -854,7 +934,7 @@ function renderTrophyDetails(data) {
       );
       const image = document.createElement("img");
       image.className =
-        "h-16 w-16 shrink-0 rounded-xl bg-slate-800 object-cover shadow-lg";
+        "game-icon game-cover-glow h-16 w-16 shrink-0 rounded-xl";
       image.src = trophy.iconUrl || avatarFallback(trophy.name);
       image.alt = "";
       image.loading = "lazy";
@@ -870,7 +950,11 @@ function renderTrophyDetails(data) {
       );
       const meta = [];
       if (trophy.earned) meta.push(`Earned ${formatDate(trophy.earnedAt)}`);
-      if (trophy.earnedRate !== null) meta.push(`${trophy.earnedRate}% earned rate`);
+      if (trophy.earnedRate !== null) {
+        meta.push(
+          `${trophy.earnedRate}% of players who played this game earned this trophy`,
+        );
+      }
       body.append(
         node(
           "p",
@@ -976,6 +1060,8 @@ function platformBadge(value, extraClass = "") {
   const platforms = [];
   if (label.includes("PS4")) platforms.push("PS4");
   if (label.includes("PS5")) platforms.push("PS5");
+  if (label.includes("PS3")) platforms.push("PS3");
+  if (label.includes("Vita")) platforms.push("PS Vita");
 
   if (!platforms.length) {
     badge.classList.add(
@@ -996,11 +1082,16 @@ function platformBadge(value, extraClass = "") {
       badge.append(node("span", "text-[10px] text-slate-600", "/"));
     }
     const image = document.createElement("img");
-    image.className = "platform-wordmark";
-    image.src =
-      platform === "PS5"
-        ? "./assets/ps5-wordmark.svg"
-        : "./assets/ps4-wordmark.svg";
+    const asset = {
+      PS5: "ps5-wordmark.svg",
+      PS4: "ps4-wordmark.svg",
+      PS3: "ps3-wordmark.svg",
+      "PS Vita": "psvita-wordmark.svg",
+    }[platform];
+    image.className = `platform-wordmark platform-wordmark-${platform
+      .toLowerCase()
+      .replace(/\s+/g, "-")}`;
+    image.src = `./assets/${asset}`;
     image.alt = "";
     badge.append(image);
   });
@@ -1031,6 +1122,30 @@ function avatarFallback(name) {
   return `https://placehold.co/160x160/0d1728/2d9cff?text=${letter}`;
 }
 
+function visibleGames(games, settings = readSettings()) {
+  if (!settings.hideShareFactory) return [...games];
+  return games.filter(
+    (game) =>
+      !/^share factory(?: studio)?$/i.test(
+        String(game.name || "")
+          .replace(/[®™©]/g, "")
+          .trim(),
+      ),
+  );
+}
+
+function displayedStats(data) {
+  const games = visibleGames(data?.games || [], readSettings());
+  return {
+    ...(data?.stats || {}),
+    totalGames: games.length,
+    totalPlayTimeSeconds: games.reduce(
+      (total, game) => total + Number(game.playTimeSeconds || 0),
+      0,
+    ),
+  };
+}
+
 function readSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
@@ -1043,6 +1158,11 @@ function readSettings() {
       showLegacyId: Boolean(saved.showLegacyId),
       showTrophyGames: Boolean(saved.showTrophyGames),
       topGamesOnTop: Boolean(saved.topGamesOnTop),
+      trophyOriginalOrder: Boolean(saved.trophyOriginalOrder),
+      hideShareFactory:
+        typeof saved.hideShareFactory === "boolean"
+          ? saved.hideShareFactory
+          : true,
       psColors:
         typeof saved.psColors === "boolean"
           ? saved.psColors
@@ -1058,6 +1178,8 @@ function readSettings() {
       showLegacyId: false,
       showTrophyGames: false,
       topGamesOnTop: false,
+      trophyOriginalOrder: false,
+      hideShareFactory: true,
       psColors: false,
     };
   }
@@ -1079,7 +1201,7 @@ function positionTopGames(settings = readSettings()) {
 }
 
 function setLivePlaytimeBaseline(data) {
-  state.livePlaytimeBase = Number(data.stats?.totalPlayTimeSeconds || 0);
+  state.livePlaytimeBase = displayedStats(data).totalPlayTimeSeconds;
   state.livePlaytimeStartedAt =
     data.presence?.status === "playing" &&
     !data.meta?.localOffline &&
@@ -1097,8 +1219,11 @@ function currentLivePlaytime() {
 }
 
 function updateLivePlaytime() {
+  const total = currentLivePlaytime();
   const value = document.querySelector("[data-live-playtime]");
-  if (value) value.textContent = formatDuration(currentLivePlaytime());
+  const detail = document.querySelector("[data-live-playtime-detail]");
+  if (value) value.textContent = formatDuration(total);
+  if (detail) detail.textContent = formatLongDuration(total);
 }
 
 function freezeLivePlaytime() {

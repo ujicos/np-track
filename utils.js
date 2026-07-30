@@ -6,6 +6,37 @@ export function formatDuration(value) {
   return `${rawHours}h ${minutes}m ${seconds}s`;
 }
 
+export function formatLongDuration(value) {
+  let remaining = Math.max(0, Math.floor(Number(value) || 0));
+  const yearSeconds = 365 * 24 * 60 * 60;
+  const monthSeconds = 30 * 24 * 60 * 60;
+  const daySeconds = 24 * 60 * 60;
+  const years = Math.floor(remaining / yearSeconds);
+  remaining %= yearSeconds;
+  const months = Math.floor(remaining / monthSeconds);
+  remaining %= monthSeconds;
+  const days = Math.floor(remaining / daySeconds);
+  remaining %= daySeconds;
+  const hours = Math.floor(remaining / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const seconds = remaining % 60;
+  const unit = (amount, singular) =>
+    `${amount} ${singular}${amount === 1 ? "" : "s"}`;
+
+  if (years) {
+    return [unit(years, "year"), unit(months, "month"), unit(days, "day")].join(", ");
+  }
+  if (months) {
+    return [unit(months, "month"), unit(days, "day")].join(", ");
+  }
+  return [
+    unit(days, "day"),
+    unit(hours, "hour"),
+    unit(minutes, "minute"),
+    unit(seconds, "second"),
+  ].join(", ");
+}
+
 export function normaliseNpssoInput(value) {
   const trimmed = value.trim();
   if (!trimmed) return "";
