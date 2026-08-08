@@ -4,6 +4,7 @@ import {
   formatDuration,
   isShareFactoryTitle,
   normaliseTitleId,
+  resolveGameQuery,
 } from "./utils.js";
 import {
   cacheGameIcons,
@@ -13,6 +14,7 @@ import {
 
 const API_BASE_URL = "https://np-track-api.ujicos.workers.dev";
 const SETTINGS_KEY = "np-track.settings";
+const COMBINE_SETTINGS_KEY = "np-track.combine-settings";
 
 const form = document.querySelector("#compare-form");
 const firstInput = document.querySelector("#player-one");
@@ -37,6 +39,7 @@ const combineSpecificGames = document.querySelector("#combine-specific-games");
 const gameQueryWrap = document.querySelector("#game-query-wrap");
 const gameQueries = document.querySelector("#game-queries");
 const combineCrossGeneration = document.querySelector("#combine-cross-generation");
+const rememberCombine = document.querySelector("#remember-combine");
 const combineResults = document.querySelector("#combine-results");
 const combineSummary = document.querySelector("#combine-summary");
 const combinedAccounts = document.querySelector("#combined-accounts");
@@ -45,20 +48,49 @@ const combinedGames = document.querySelector("#combined-games");
 
 const initialSettings = readSettings();
 const initialParams = new URLSearchParams(location.search);
+const savedCombine = readCombineSettings();
 firstInput.value = initialParams.get("first") || initialSettings.defaultPsn;
 secondInput.value = initialParams.get("second") || "";
-let activeMode = initialParams.get("mode") === "combine" ? "combine" : "compare";
+const hasCombineSetupInUrl = ["profiles", "games", "titleIds", "full", "specific", "crossGen"]
+  .some((key) => initialParams.has(key));
+const hasComparisonInUrl = initialParams.has("first") || initialParams.has("second");
+const useSavedCombine = Boolean(savedCombine) && !hasCombineSetupInUrl;
+let activeMode =
+  initialParams.get("mode") === "combine" || (!hasComparisonInUrl && useSavedCombine)
+    ? "combine"
+    : "compare";
 
-const initialProfiles = (initialParams.get("profiles") || "")
+const initialProfileSource = hasCombineSetupInUrl
+  ? initialParams.get("profiles") || ""
+  : useSavedCombine
+    ? savedCombine.profiles.join(",")
+    : "";
+const initialProfiles = initialProfileSource
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
 while (initialProfiles.length < 2) initialProfiles.push("");
 if (!initialProfiles[0]) initialProfiles[0] = initialSettings.defaultPsn;
 initialProfiles.forEach((value) => addCombineProfile(value));
-gameQueries.value = initialParams.get("titleIds") || initialParams.get("games") || "";
-if (gameQueries.value) combineSpecificGames.checked = true;
-combineCrossGeneration.checked = initialParams.get("crossGen") === "1";
+gameQueries.value = hasCombineSetupInUrl
+  ? initialParams.get("games") || initialParams.get("titleIds") || ""
+  : useSavedCombine
+    ? savedCombine.gameQueries
+    : "";
+combineFullAccount.checked = hasCombineSetupInUrl
+  ? initialParams.get("full") !== "0"
+  : useSavedCombine
+    ? savedCombine.includeFullAccount
+    : true;
+combineSpecificGames.checked = hasCombineSetupInUrl
+  ? Boolean(gameQueries.value) || initialParams.get("specific") === "1"
+  : useSavedCombine
+    ? savedCombine.includeSpecificGames
+    : Boolean(gameQueries.value);
+combineCrossGeneration.checked = hasCombineSetupInUrl
+  ? initialParams.get("crossGen") === "1"
+  : Boolean(useSavedCombine && savedCombine.combineCrossGeneration);
+rememberCombine.checked = useSavedCombine;
 setMode(activeMode);
 
 compareModeButton.addEventListener("click", () => setMode("compare"));
@@ -193,23 +225,16 @@ async function submitCombination() {
     setMessage("Select full account playtime, specific games, or both.", true);
     return;
   }
-  const titleIds = [
+  const queries = [
     ...new Set(
       gameQueries.value
         .split(/\n|,/)
-        .map((value) => normaliseTitleId(value))
+        .map((value) => value.trim())
         .filter(Boolean),
     ),
   ];
-  if (combineSpecificGames.checked && !titleIds.length) {
-    setMessage("Enter at least one PSN title ID to combine.", true);
-    return;
-  }
-  const invalidTitleId = titleIds.find(
-    (titleId) => !/^[A-Z]{4}\d{5}$/.test(titleId),
-  );
-  if (combineSpecificGames.checked && invalidTitleId) {
-    setMessage(`“${invalidTitleId}” is not a valid PSN title ID. Use a value such as CUSA44222.`, true);
+  if (combineSpecificGames.checked && !queries.length) {
+    setMessage("Enter at least one game name, alias, or PSN title ID to combine.", true);
     return;
   }
 
@@ -223,22 +248,35 @@ async function submitCombination() {
         fetchPlayerWithOffline(onlineId, legacyIdFor(onlineId)),
       ),
     );
-    renderCombination(profiles, titleIds, {
+    const options = {
       includeFullAccount: combineFullAccount.checked,
       includeSpecificGames: combineSpecificGames.checked,
       combineCrossGeneration: combineCrossGeneration.checked,
-    });
+    };
+    renderCombination(profiles, queries, options);
     const params = new URLSearchParams();
     params.set("mode", "combine");
     params.set("profiles", profiles.map((profile) => profile.player.onlineId).join(","));
-    if (titleIds.length) params.set("titleIds", titleIds.join(","));
+    if (!options.includeFullAccount) params.set("full", "0");
+    if (options.includeSpecificGames) params.set("specific", "1");
+    if (queries.length) params.set("games", queries.join(","));
     if (combineCrossGeneration.checked) params.set("crossGen", "1");
     history.replaceState({}, "", `${location.pathname}?${params}`);
-    setMessage(
-      profiles.some((profile) => profile.meta?.localOffline)
-        ? "Showing the latest saved data because the network is unavailable."
-        : "",
-    );
+    if (rememberCombine.checked) {
+      saveCombineSettings({
+        profiles: profiles.map((profile) => profile.player.onlineId),
+        gameQueries: queries.join("\n"),
+        ...options,
+      });
+    } else {
+      clearCombineSettings();
+    }
+    const notices = [];
+    if (profiles.some((profile) => profile.meta?.localOffline)) {
+      notices.push("Showing the latest saved data because the network is unavailable.");
+    }
+    if (rememberCombine.checked) notices.push("Combine setup saved on this device.");
+    setMessage(notices.join("\n"));
   } catch (error) {
     setMessage(error.message || "Could not combine these accounts.", true);
   } finally {
@@ -313,7 +351,7 @@ function renderComparison(first, second) {
   results.classList.remove("hidden");
 }
 
-function renderCombination(profiles, titleIds, options) {
+function renderCombination(profiles, queries, options) {
   const settings = readSettings();
   const records = profiles.map((profile) => {
     const games = visibleGames(profile.games, settings);
@@ -325,9 +363,9 @@ function renderCombination(profiles, titleIds, options) {
     };
   });
   const gameResults = options.includeSpecificGames
-    ? titleIds.map((titleId) =>
+    ? queries.map((query) =>
         combinedGameResult(
-          titleId,
+          query,
           records,
           options.combineCrossGeneration,
         ),
@@ -407,9 +445,9 @@ function combinedProfileCard(record, options) {
     avatarFallback(record.profile.player.onlineId);
   avatar.alt = "";
   const body = node("div", "min-w-0 flex-1");
-  body.append(
-    node("h3", "truncate font-bold", record.profile.player.onlineId),
-  );
+  const title = node("h3", "truncate font-bold");
+  title.append(profileSearchLink(record.profile.player.onlineId));
+  body.append(title);
   if (options.includeFullAccount) {
     body.append(
       contributionLine("Account total", record.fullPlaytime),
@@ -424,7 +462,28 @@ function combinedProfileCard(record, options) {
   return card;
 }
 
-function combinedGameResult(titleId, records, crossGeneration) {
+function combinedGameResult(query, records, crossGeneration) {
+  const resolution = resolveGameQuery(
+    records.flatMap((record) => record.games),
+    query,
+  );
+  if (resolution.status !== "resolved") {
+    const contributions = records.map(() => ({ games: [], seconds: 0 }));
+    return {
+      query,
+      resolutionStatus: resolution.status,
+      candidates: resolution.candidates,
+      titleId: "",
+      name: query,
+      imageUrl: resolution.candidates[0]?.imageUrl || "",
+      matchedTitleIds: [],
+      platforms: [],
+      crossGeneration,
+      contributions,
+      total: 0,
+    };
+  }
+  const titleId = resolution.titleId;
   const exactMatches = records.flatMap((record) =>
     findGamesByTitleId(record.games, titleId),
   );
@@ -467,9 +526,12 @@ function combinedGameResult(titleId, records, crossGeneration) {
     ),
   ];
   return {
+    query,
+    resolutionStatus: "resolved",
+    candidates: resolution.candidates,
     titleId,
-    name: representative?.name || titleId,
-    imageUrl: representative?.imageUrl || "",
+    name: representative?.name || resolution.game?.name || titleId,
+    imageUrl: representative?.imageUrl || resolution.game?.imageUrl || "",
     matchedTitleIds,
     platforms,
     crossGeneration,
@@ -509,9 +571,12 @@ function combinedGameRow(result, records) {
     ),
   );
   if (!result.contributions.some((item) => item.games.length)) {
-    heading.append(
-      node("p", "mt-1 text-xs text-amber-300/80", `No visible match for ${result.titleId}`),
-    );
+    const detail = result.resolutionStatus === "ambiguous"
+      ? `Multiple matches found. Use a more specific name or title ID: ${result.candidates
+          .map((candidate) => `${candidate.name} (${candidate.resolvedTitleId})`)
+          .join(", ")}`
+      : `No visible match for “${result.query}”.`;
+    heading.append(node("p", "mt-1 text-xs text-amber-300/80", detail));
   }
   const contributionList = node(
     "div",
@@ -546,10 +611,9 @@ function profileCard(data, games, playtime) {
   avatar.src = data.player.avatarUrl || avatarFallback(data.player.onlineId);
   avatar.alt = `Profile picture for ${data.player.onlineId}`;
   const identity = node("div", "min-w-0");
-  identity.append(
-    node("h2", "truncate text-2xl font-black", data.player.onlineId),
-    node("p", "mt-1 text-sm text-slate-400", presenceLabel(data.presence)),
-  );
+  const profileTitle = node("h2", "truncate text-2xl font-black");
+  profileTitle.append(profileSearchLink(data.player.onlineId));
+  identity.append(profileTitle, node("p", "mt-1 text-sm text-slate-400", presenceLabel(data.presence)));
   heading.append(avatar, identity);
 
   const stats = node("div", "mt-6 grid grid-cols-3 gap-3");
@@ -709,6 +773,38 @@ function readSettings() {
   }
 }
 
+function readCombineSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COMBINE_SETTINGS_KEY) || "null");
+    if (!saved || !Array.isArray(saved.profiles) || saved.profiles.length < 2) return null;
+    return {
+      profiles: saved.profiles.filter((value) => typeof value === "string"),
+      gameQueries: typeof saved.gameQueries === "string" ? saved.gameQueries : "",
+      includeFullAccount: saved.includeFullAccount !== false,
+      includeSpecificGames: Boolean(saved.includeSpecificGames),
+      combineCrossGeneration: Boolean(saved.combineCrossGeneration),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveCombineSettings(value) {
+  try {
+    localStorage.setItem(COMBINE_SETTINGS_KEY, JSON.stringify(value));
+  } catch {
+    // Storage restrictions should not prevent a successful calculation.
+  }
+}
+
+function clearCombineSettings() {
+  try {
+    localStorage.removeItem(COMBINE_SETTINGS_KEY);
+  } catch {
+    // Storage restrictions should not prevent a successful calculation.
+  }
+}
+
 function setLoading(loading) {
   button.disabled = loading;
   button.textContent = loading
@@ -738,6 +834,17 @@ function emptyState(text) {
 function avatarFallback(name) {
   const letter = encodeURIComponent((name || "P")[0].toUpperCase());
   return `https://placehold.co/160x160/0d1728/2d9cff?text=${letter}`;
+}
+
+function profileSearchLink(onlineId) {
+  const link = node(
+    "a",
+    "rounded-sm transition hover:text-cyan hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan",
+    onlineId,
+  );
+  link.href = `../?player=${encodeURIComponent(onlineId)}`;
+  link.setAttribute("aria-label", `Open ${onlineId} in Search`);
+  return link;
 }
 
 function node(tag, className = "", text = "") {

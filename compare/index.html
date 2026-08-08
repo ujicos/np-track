@@ -114,7 +114,7 @@
         </a>
         <nav class="site-nav flex items-center gap-1 text-sm font-semibold" aria-label="Main navigation">
           <a href="../" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white">Search</a>
-          <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white">Compare</a>
+          <a href="./" aria-current="page" class="rounded-lg bg-white/10 px-4 py-2 text-white"><span class="sm:hidden">Compare +</span><span class="hidden sm:inline">Compare / Combine</span></a>
           <a href="../about/" class="rounded-lg px-4 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white"><span class="sm:hidden">About</span><span class="hidden sm:inline">About / FAQ</span></a>
           <button id="open-settings" type="button" class="relative z-10 shrink-0 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-white" aria-label="Open settings" title="Settings">
             <svg class="h-[1.05rem] w-[1.05rem]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -204,18 +204,22 @@
               </label>
               <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
                 <input id="combine-specific-games" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
-                <span><strong class="block text-sm">Specific games</strong><span class="mt-1 block text-xs text-slate-500">Sum exact PSN title IDs across every profile.</span></span>
+                <span><strong class="block text-sm">Specific games</strong><span class="mt-1 block text-xs text-slate-500">Find a game by name, short alias, or exact PSN title ID.</span></span>
               </label>
             </div>
             <div id="game-query-wrap" class="mt-4 hidden">
-              <label for="game-queries" class="mb-2 block text-sm font-bold text-slate-300">PSN title IDs</label>
-              <textarea id="game-queries" rows="3" autocapitalize="characters" spellcheck="false" class="w-full resize-y rounded-xl border border-white/10 bg-ink px-4 py-3 font-mono uppercase outline-none focus:border-cyan" placeholder="CUSA44222&#10;PPSA12345"></textarea>
-              <span class="mt-2 block text-xs text-slate-500">One ID per line. The optional suffix is accepted, so CUSA57548 and CUSA57548_00 resolve identically.</span>
+              <label for="game-queries" class="mb-2 block text-sm font-bold text-slate-300">Game names or PSN title IDs</label>
+              <textarea id="game-queries" rows="3" autocapitalize="off" spellcheck="false" class="w-full resize-y rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan" placeholder="Black Ops 2&#10;BO2&#10;CUSA57548"></textarea>
+              <span class="mt-2 block text-xs text-slate-500">One game per line. Common short names such as BO2 are supported. Use a title ID when two releases have similar names.</span>
               <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
                 <input id="combine-cross-generation" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
                 <span><strong class="block text-sm">Combine PS4 &amp; PS5?</strong><span class="mt-1 block text-xs text-slate-500">Also include visible cross-generation versions linked to the same PSN concept.</span></span>
               </label>
             </div>
+            <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
+              <input id="remember-combine" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+              <span><strong class="block text-sm">Remember this Combine setup</strong><span class="mt-1 block text-xs text-slate-500">Keep the profiles, games, and options on this device for the next visit.</span></span>
+            </label>
           </fieldset>
         </div>
 

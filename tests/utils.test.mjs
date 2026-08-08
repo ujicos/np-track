@@ -9,7 +9,9 @@ import {
   formatLongDuration,
   isShareFactoryTitle,
   normaliseNpssoInput,
+  normaliseGameSearch,
   normaliseTitleId,
+  resolveGameQuery,
 } from "../utils.js";
 
 test("formats single-digit playtime without padding", () => {
@@ -81,6 +83,42 @@ test("only combines PS4 and PS5 siblings when cross-generation is enabled", () =
       conceptIds: [100],
     }),
     [games[0], games[1]],
+  );
+});
+
+test("resolves a readable game name and BO2 alias to its PSN title ID", () => {
+  const games = [
+    {
+      name: "Call of Duty®: Black Ops II",
+      titleId: "CUSA57548_00",
+      conceptId: 10017658,
+      platform: "PS4",
+    },
+    {
+      name: "Call of Duty®: Black Ops 4",
+      titleId: "CUSA11100_00",
+      conceptId: 200,
+      platform: "PS4",
+    },
+  ];
+  assert.equal(normaliseGameSearch(games[0].name), "call of duty black ops 2");
+  assert.equal(resolveGameQuery(games, "Black Ops 2").titleId, "CUSA57548");
+  assert.equal(resolveGameQuery(games, "BO2").titleId, "CUSA57548");
+  assert.equal(resolveGameQuery(games, "cusa57548_00").titleId, "CUSA57548");
+});
+
+test("does not guess when a game name is equally ambiguous", () => {
+  const result = resolveGameQuery(
+    [
+      { name: "Example Game", titleId: "CUSA10000", conceptId: 1 },
+      { name: "Example Game", titleId: "CUSA20000", conceptId: 2 },
+    ],
+    "Example Game",
+  );
+  assert.equal(result.status, "ambiguous");
+  assert.deepEqual(
+    result.candidates.map((candidate) => candidate.resolvedTitleId),
+    ["CUSA10000", "CUSA20000"],
   );
 });
 
