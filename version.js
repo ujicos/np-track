@@ -4,11 +4,65 @@ const VERSION_CHECK_INTERVAL_MS = 60_000;
 const VERSION_URL = new URL("./version.json", document.currentScript.src);
 const SERVICE_WORKER_URL = new URL("./service-worker.js", document.currentScript.src);
 let versionCheckRunning = false;
+let controllerRefreshRunning = false;
 
 if ("serviceWorker" in navigator) {
   addEventListener("load", () => {
-    void navigator.serviceWorker.register(SERVICE_WORKER_URL.href).catch(() => {});
+    void registerLatestServiceWorker();
   });
+}
+
+async function registerLatestServiceWorker() {
+  try {
+    const registration = await navigator.serviceWorker.register(
+      SERVICE_WORKER_URL.href,
+      { updateViaCache: "none" },
+    );
+    await registration.update();
+    return registration;
+  } catch {
+    return null;
+  }
+}
+
+function waitForWorkerState(worker, targetState, timeoutMs = 4_000) {
+  if (!worker || worker.state === targetState) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timeout = setTimeout(resolve, timeoutMs);
+    worker.addEventListener("statechange", () => {
+      if (worker.state !== targetState) return;
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+}
+
+async function activateLatestServiceWorker() {
+  if (!("serviceWorker" in navigator) || controllerRefreshRunning) return;
+  controllerRefreshRunning = true;
+  try {
+    const registration = await registerLatestServiceWorker();
+    const installing = registration?.installing;
+    if (installing) await waitForWorkerState(installing, "installed");
+    const waiting = registration?.waiting;
+    if (!waiting) return;
+
+    const controllerChanged = new Promise((resolve) => {
+      const timeout = setTimeout(resolve, 4_000);
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        () => {
+          clearTimeout(timeout);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+    waiting.postMessage({ type: "SKIP_WAITING" });
+    await controllerChanged;
+  } finally {
+    controllerRefreshRunning = false;
+  }
 }
 
 async function fetchVersion() {
@@ -48,6 +102,7 @@ async function checkForUpdate() {
 
   sessionStorage.setItem(VERSION_RELOADED_KEY, next.version);
   localStorage.setItem(VERSION_CURRENT_KEY, next.version);
+  await activateLatestServiceWorker();
   location.reload();
 }
 

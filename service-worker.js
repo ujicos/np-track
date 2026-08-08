@@ -1,4 +1,4 @@
-const CACHE_NAME = "np-track-shell-v13";
+const CACHE_NAME = "np-track-shell-v14";
 const IMAGE_CACHE_NAME = "np-track-images-v1";
 const RUNTIME_CACHE_NAME = "np-track-runtime-v1";
 const EXTERNAL_RUNTIME_URLS = ["https://cdn.tailwindcss.com/"];
@@ -28,9 +28,14 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
+  const freshShellRequests = APP_SHELL.map(
+    (url) => new Request(url, { cache: "reload" }),
+  );
   event.waitUntil(
     Promise.all([
-      caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+      caches
+        .open(CACHE_NAME)
+        .then((cache) => cache.addAll(freshShellRequests)),
       cacheExternalRuntime(),
     ]),
   );
@@ -58,6 +63,10 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+    return;
+  }
   if (event.data?.type === "CLEAR_IMAGE_CACHE") {
     event.waitUntil(caches.delete(IMAGE_CACHE_NAME));
   }
@@ -107,7 +116,9 @@ async function cacheExternalRuntime() {
 async function networkFirst(request, fallbackUrl) {
   const cache = await caches.open(CACHE_NAME);
   try {
-    const response = await fetch(request);
+    const response = await fetch(
+      new Request(request, { cache: "no-store" }),
+    );
     if (response.ok) await cache.put(request, response.clone());
     return response;
   } catch {
