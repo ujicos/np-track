@@ -19,4 +19,8 @@ np-track is a simple PSN profile tracker for viewing playtime, game history, act
 
 [Support np-track](https://buymeacoffee.com/consolation)
 
+## Credits
+
+PSN access is powered by the open-source [psn-api library by Wes Copeland](https://github.com/achievements-app/psn-api).
+
 Available information depends on each profile’s PSN privacy settings. np-track is not affiliated with Sony™ Interactive Entertainment.
