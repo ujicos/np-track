@@ -204,14 +204,18 @@
               </label>
               <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
                 <input id="combine-specific-games" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
-                <span><strong class="block text-sm">Specific games</strong><span class="mt-1 block text-xs text-slate-500">Sum matching titles across every profile.</span></span>
+                <span><strong class="block text-sm">Specific games</strong><span class="mt-1 block text-xs text-slate-500">Sum exact PSN title IDs across every profile.</span></span>
               </label>
             </div>
-            <label id="game-query-wrap" class="mt-4 hidden">
-              <span class="mb-2 block text-sm font-bold text-slate-300">Game titles</span>
-              <textarea id="game-queries" rows="3" class="w-full resize-y rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan" placeholder="Black Ops II&#10;Another game"></textarea>
-              <span class="mt-2 block text-xs text-slate-500">One title per line. Partial titles work, so “Black Ops II” matches “Call of Duty: Black Ops II”.</span>
-            </label>
+            <div id="game-query-wrap" class="mt-4 hidden">
+              <label for="game-queries" class="mb-2 block text-sm font-bold text-slate-300">PSN title IDs</label>
+              <textarea id="game-queries" rows="3" autocapitalize="characters" spellcheck="false" class="w-full resize-y rounded-xl border border-white/10 bg-ink px-4 py-3 font-mono uppercase outline-none focus:border-cyan" placeholder="CUSA44222&#10;PPSA12345"></textarea>
+              <span class="mt-2 block text-xs text-slate-500">One ID per line. The optional suffix is accepted, so CUSA57548 and CUSA57548_00 resolve identically.</span>
+              <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
+                <input id="combine-cross-generation" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+                <span><strong class="block text-sm">Combine PS4 &amp; PS5?</strong><span class="mt-1 block text-xs text-slate-500">Also include visible cross-generation versions linked to the same PSN concept.</span></span>
+              </label>
+            </div>
           </fieldset>
         </div>
 

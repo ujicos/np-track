@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 
 import {
   earnedTrophiesFirst,
-  findGamesByTitle,
+  findGamesForCombination,
+  findGamesByTitleId,
   formatDuration,
   formatLongDuration,
   isShareFactoryTitle,
   normaliseNpssoInput,
+  normaliseTitleId,
 } from "../utils.js";
 
 test("formats single-digit playtime without padding", () => {
@@ -48,15 +50,38 @@ test("recognises Sony's Share Factory title variants", () => {
   assert.equal(isShareFactoryTitle("Share Play"), false);
 });
 
-test("matches a shortened game title for multi-profile playtime", () => {
+test("matches an exact PSN title ID for multi-profile playtime", () => {
   const games = [
-    { name: "Call of Duty®: Black Ops", playTimeSeconds: 10 },
-    { name: "Call of Duty®: Black Ops II", playTimeSeconds: 20 },
-    { name: "Call of Duty®: Black Ops 4", playTimeSeconds: 30 },
+    { name: "PS4 game", titleId: "CUSA57548_00", playTimeSeconds: 20 },
+    { name: "PS5 game", titleId: "PPSA44222_00", playTimeSeconds: 30 },
   ];
-  assert.deepEqual(findGamesByTitle(games, "Black Ops II"), [games[1]]);
-  assert.deepEqual(findGamesByTitle(games, "Call of Duty Black Ops 4"), [games[2]]);
-  assert.deepEqual(findGamesByTitle(games, "Missing game"), []);
+  assert.deepEqual(findGamesByTitleId(games, "cusa57548"), [games[0]]);
+  assert.deepEqual(findGamesByTitleId(games, "CUSA57548_00"), [games[0]]);
+  assert.deepEqual(findGamesByTitleId(games, "CUSA00000"), []);
+  assert.equal(normaliseTitleId(" ppsa44222_00 "), "PPSA44222");
+});
+
+test("only combines PS4 and PS5 siblings when cross-generation is enabled", () => {
+  const games = [
+    { titleId: "CUSA57548_00", conceptId: 100, platform: "PS4" },
+    { titleId: "PPSA57548_00", conceptId: 100, platform: "PS5" },
+    { titleId: "NPUB57548_00", conceptId: 100, platform: "PS3" },
+    { titleId: "PPSA99999_00", conceptId: 999, platform: "PS5" },
+  ];
+  assert.deepEqual(
+    findGamesForCombination(games, "CUSA57548", {
+      combineCrossGeneration: false,
+      conceptIds: [100],
+    }),
+    [games[0]],
+  );
+  assert.deepEqual(
+    findGamesForCombination(games, "CUSA57548", {
+      combineCrossGeneration: true,
+      conceptIds: [100],
+    }),
+    [games[0], games[1]],
+  );
 });
 
 test("puts earned trophies before locked trophies without changing group order", () => {

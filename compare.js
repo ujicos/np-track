@@ -1,7 +1,9 @@
 import {
-  findGamesByTitle,
+  findGamesByTitleId,
+  findGamesForCombination,
   formatDuration,
   isShareFactoryTitle,
+  normaliseTitleId,
 } from "./utils.js";
 import {
   cacheGameIcons,
@@ -34,6 +36,7 @@ const combineFullAccount = document.querySelector("#combine-full-account");
 const combineSpecificGames = document.querySelector("#combine-specific-games");
 const gameQueryWrap = document.querySelector("#game-query-wrap");
 const gameQueries = document.querySelector("#game-queries");
+const combineCrossGeneration = document.querySelector("#combine-cross-generation");
 const combineResults = document.querySelector("#combine-results");
 const combineSummary = document.querySelector("#combine-summary");
 const combinedAccounts = document.querySelector("#combined-accounts");
@@ -53,8 +56,9 @@ const initialProfiles = (initialParams.get("profiles") || "")
 while (initialProfiles.length < 2) initialProfiles.push("");
 if (!initialProfiles[0]) initialProfiles[0] = initialSettings.defaultPsn;
 initialProfiles.forEach((value) => addCombineProfile(value));
-gameQueries.value = initialParams.get("games") || "";
+gameQueries.value = initialParams.get("titleIds") || initialParams.get("games") || "";
 if (gameQueries.value) combineSpecificGames.checked = true;
+combineCrossGeneration.checked = initialParams.get("crossGen") === "1";
 setMode(activeMode);
 
 compareModeButton.addEventListener("click", () => setMode("compare"));
@@ -189,12 +193,23 @@ async function submitCombination() {
     setMessage("Select full account playtime, specific games, or both.", true);
     return;
   }
-  const queries = gameQueries.value
-    .split(/\n|,/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (combineSpecificGames.checked && !queries.length) {
-    setMessage("Enter at least one game title to combine.", true);
+  const titleIds = [
+    ...new Set(
+      gameQueries.value
+        .split(/\n|,/)
+        .map((value) => normaliseTitleId(value))
+        .filter(Boolean),
+    ),
+  ];
+  if (combineSpecificGames.checked && !titleIds.length) {
+    setMessage("Enter at least one PSN title ID to combine.", true);
+    return;
+  }
+  const invalidTitleId = titleIds.find(
+    (titleId) => !/^[A-Z]{4}\d{5}$/.test(titleId),
+  );
+  if (combineSpecificGames.checked && invalidTitleId) {
+    setMessage(`“${invalidTitleId}” is not a valid PSN title ID. Use a value such as CUSA44222.`, true);
     return;
   }
 
@@ -208,14 +223,16 @@ async function submitCombination() {
         fetchPlayerWithOffline(onlineId, legacyIdFor(onlineId)),
       ),
     );
-    renderCombination(profiles, queries, {
+    renderCombination(profiles, titleIds, {
       includeFullAccount: combineFullAccount.checked,
       includeSpecificGames: combineSpecificGames.checked,
+      combineCrossGeneration: combineCrossGeneration.checked,
     });
     const params = new URLSearchParams();
     params.set("mode", "combine");
     params.set("profiles", profiles.map((profile) => profile.player.onlineId).join(","));
-    if (queries.length) params.set("games", queries.join(","));
+    if (titleIds.length) params.set("titleIds", titleIds.join(","));
+    if (combineCrossGeneration.checked) params.set("crossGen", "1");
     history.replaceState({}, "", `${location.pathname}?${params}`);
     setMessage(
       profiles.some((profile) => profile.meta?.localOffline)
@@ -296,7 +313,7 @@ function renderComparison(first, second) {
   results.classList.remove("hidden");
 }
 
-function renderCombination(profiles, queries, options) {
+function renderCombination(profiles, titleIds, options) {
   const settings = readSettings();
   const records = profiles.map((profile) => {
     const games = visibleGames(profile.games, settings);
@@ -308,7 +325,13 @@ function renderCombination(profiles, queries, options) {
     };
   });
   const gameResults = options.includeSpecificGames
-    ? queries.map((query) => combinedGameResult(query, records))
+    ? titleIds.map((titleId) =>
+        combinedGameResult(
+          titleId,
+          records,
+          options.combineCrossGeneration,
+        ),
+      )
     : [];
   records.forEach((record, profileIndex) => {
     record.selectedPlaytime = gameResults.reduce(
@@ -401,9 +424,21 @@ function combinedProfileCard(record, options) {
   return card;
 }
 
-function combinedGameResult(query, records) {
+function combinedGameResult(titleId, records, crossGeneration) {
+  const exactMatches = records.flatMap((record) =>
+    findGamesByTitleId(record.games, titleId),
+  );
+  const conceptIds = new Set(
+    exactMatches
+      .map((game) => game.conceptId)
+      .filter((conceptId) => conceptId !== null && conceptId !== undefined)
+      .map(String),
+  );
   const contributions = records.map((record) => {
-    const games = findGamesByTitle(record.games, query);
+    const games = findGamesForCombination(record.games, titleId, {
+      combineCrossGeneration: crossGeneration,
+      conceptIds: [...conceptIds],
+    });
     return {
       games,
       seconds: totalPlaytime(games),
@@ -415,10 +450,29 @@ function combinedGameResult(query, records) {
       (left, right) =>
         Number(right.playTimeSeconds || 0) - Number(left.playTimeSeconds || 0),
     )[0];
+  const matchedTitleIds = [
+    ...new Set(
+      contributions
+        .flatMap((contribution) => contribution.games)
+        .map((game) => game.titleId)
+        .filter(Boolean),
+    ),
+  ];
+  const platforms = [
+    ...new Set(
+      contributions
+        .flatMap((contribution) => contribution.games)
+        .map((game) => game.platform)
+        .filter(Boolean),
+    ),
+  ];
   return {
-    query,
-    name: representative?.name || query,
+    titleId,
+    name: representative?.name || titleId,
     imageUrl: representative?.imageUrl || "",
+    matchedTitleIds,
+    platforms,
+    crossGeneration,
     contributions,
     total: contributions.reduce(
       (total, contribution) => total + contribution.seconds,
@@ -441,13 +495,22 @@ function combinedGameRow(result, records) {
     node("h3", "font-bold", result.name),
     node(
       "p",
+      "mt-1 font-mono text-xs text-slate-500",
+      result.matchedTitleIds.length
+        ? `${result.matchedTitleIds.join(" + ")}${
+            result.platforms.length ? ` · ${result.platforms.join(" + ")}` : ""
+          }`
+        : result.titleId,
+    ),
+    node(
+      "p",
       "mt-1 text-lg font-black tabular-nums text-cyan",
       formatDuration(result.total),
     ),
   );
   if (!result.contributions.some((item) => item.games.length)) {
     heading.append(
-      node("p", "mt-1 text-xs text-amber-300/80", `No visible match for “${result.query}”`),
+      node("p", "mt-1 text-xs text-amber-300/80", `No visible match for ${result.titleId}`),
     );
   }
   const contributionList = node(

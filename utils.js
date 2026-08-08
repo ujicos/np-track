@@ -44,23 +44,41 @@ export function isShareFactoryTitle(value) {
   return compact === "sharefactory" || compact === "sharefactorystudio";
 }
 
-export function findGamesByTitle(games, query) {
-  const normalise = (value) =>
-    String(value || "")
-      .toLocaleLowerCase("en")
-      .replace(/[®™©]/g, "")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-  const wanted = normalise(query);
+export function normaliseTitleId(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .split("_")[0];
+}
+
+export function findGamesByTitleId(games, titleId) {
+  const wanted = normaliseTitleId(titleId);
   if (!wanted) return [];
   const available = Array.isArray(games) ? games : [];
-  const exact = available.filter((game) => normalise(game.name) === wanted);
-  if (exact.length) return exact;
-  const suffix = available.filter((game) =>
-    normalise(game.name).endsWith(wanted),
+  return available.filter(
+    (game) => normaliseTitleId(game.titleId) === wanted,
   );
-  if (suffix.length) return suffix;
-  return available.filter((game) => normalise(game.name).includes(wanted));
+}
+
+export function findGamesForCombination(
+  games,
+  titleId,
+  { combineCrossGeneration = false, conceptIds = [] } = {},
+) {
+  const available = Array.isArray(games) ? games : [];
+  const exact = findGamesByTitleId(available, titleId);
+  const concepts = new Set(
+    conceptIds
+      .filter((conceptId) => conceptId !== null && conceptId !== undefined)
+      .map(String),
+  );
+  if (!combineCrossGeneration || !concepts.size) return exact;
+  return available.filter(
+    (game) =>
+      findGamesByTitleId([game], titleId).length > 0 ||
+      (concepts.has(String(game.conceptId)) &&
+        /PS4|PS5/i.test(String(game.platform || ""))),
+  );
 }
 
 export function earnedTrophiesFirst(trophies, preserveOrder = false) {
