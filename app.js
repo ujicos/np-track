@@ -656,16 +656,18 @@ function renderGames() {
 
 function gameCard(game) {
   const card = node("article", "game-card glass overflow-hidden rounded-2xl border border-white/10");
+  const media = node(
+    "div",
+    "game-media flex flex-col items-center justify-center gap-2",
+  );
   const image = document.createElement("img");
   image.className = "game-icon game-cover-glow w-full";
   image.src = game.imageUrl;
   image.alt = `Game icon for ${game.name}`;
   image.loading = "lazy";
+  media.append(platformBadge(game.platform), image);
   const body = node("div", "p-5");
-  body.append(
-    platformBadge(game.platform),
-    node("h3", "mt-2 truncate text-lg font-bold", game.name),
-  );
+  body.append(node("h3", "truncate text-lg font-bold", game.name));
   const details = node("div", "game-details mt-4 flex items-end justify-between gap-3");
   const played = node("div");
   played.append(
@@ -678,7 +680,7 @@ function gameCard(game) {
     : node("span", "text-xs text-slate-600", "No trophy data");
   details.append(played, trophy);
   body.append(details, storeLink(game, "PlayStation Store"));
-  card.append(image, body);
+  card.append(media, body);
   makeTrophyInteractive(card, game);
   return card;
 }
@@ -818,13 +820,17 @@ function renderTrophyOverview() {
       image.src = title.iconUrl || avatarFallback(title.name);
       image.alt = "";
       image.loading = "lazy";
+      const media = node(
+        "div",
+        "trophy-game-media flex shrink-0 flex-col items-center gap-2",
+      );
+      media.append(platformBadge(title.platform), image);
       const body = node("div", "min-w-0 flex-1");
       body.append(node("p", "truncate font-bold", title.name));
       const meta = node("div", "mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500");
       meta.append(
-        platformBadge(title.platform),
         document.createTextNode(
-          `· ${trophyCount(title.earned)} of ${trophyCount(title.defined)} earned`,
+          `${trophyCount(title.earned)} of ${trophyCount(title.defined)} earned`,
         ),
       );
       body.append(meta);
@@ -834,7 +840,7 @@ function renderTrophyOverview() {
       progress.append(bar);
       body.append(progress);
       button.append(
-        image,
+        media,
         body,
         node("span", "shrink-0 text-sm font-bold text-cyan", `${title.progress || 0}%`),
       );

@@ -44,6 +44,25 @@ export function isShareFactoryTitle(value) {
   return compact === "sharefactory" || compact === "sharefactorystudio";
 }
 
+export function findGamesByTitle(games, query) {
+  const normalise = (value) =>
+    String(value || "")
+      .toLocaleLowerCase("en")
+      .replace(/[®™©]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const wanted = normalise(query);
+  if (!wanted) return [];
+  const available = Array.isArray(games) ? games : [];
+  const exact = available.filter((game) => normalise(game.name) === wanted);
+  if (exact.length) return exact;
+  const suffix = available.filter((game) =>
+    normalise(game.name).endsWith(wanted),
+  );
+  if (suffix.length) return suffix;
+  return available.filter((game) => normalise(game.name).includes(wanted));
+}
+
 export function earnedTrophiesFirst(trophies, preserveOrder = false) {
   const ordered = [...(trophies || [])];
   if (preserveOrder) return ordered;

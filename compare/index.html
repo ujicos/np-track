@@ -14,7 +14,7 @@
     <link rel="icon" href="../assets/icons/app-icon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="../assets/icons/app-icon-192.png" sizes="192x192" type="image/png" />
     <link rel="apple-touch-icon" href="../assets/icons/app-icon-180.png" />
-    <title>Compare accounts · np-track</title>
+    <title>Compare or combine accounts · np-track</title>
     <script>
       try {
         const savedTheme = JSON.parse(localStorage.getItem("np-track.settings") || "{}");
@@ -164,20 +164,60 @@
 
     <main class="mx-auto max-w-6xl px-5 py-14 sm:py-20">
       <section class="mx-auto max-w-3xl text-center">
-        <h1 class="text-4xl font-black tracking-tight sm:text-5xl">Compare accounts</h1>
-        <p class="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-400">Enter two PSN online IDs to compare their visible playtime, games, and trophies.</p>
+        <h1 class="text-4xl font-black tracking-tight sm:text-5xl">Compare or combine accounts</h1>
+        <p id="mode-description" class="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-400">Enter two PSN online IDs to compare their visible playtime, games, and trophies.</p>
       </section>
 
-      <form id="compare-form" class="glass mx-auto mt-10 grid max-w-4xl gap-4 rounded-3xl border border-white/10 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end sm:p-6">
-        <label class="block">
-          <span class="mb-2 block text-sm font-bold text-slate-300">First account</span>
-          <input id="player-one" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+" class="w-full rounded-xl border border-white/10 bg-ink px-4 py-3.5 outline-none focus:border-cyan" placeholder="PSN online ID" autocomplete="off" />
-        </label>
-        <label class="block">
-          <span class="mb-2 block text-sm font-bold text-slate-300">Second account</span>
-          <input id="player-two" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+" class="w-full rounded-xl border border-white/10 bg-ink px-4 py-3.5 outline-none focus:border-cyan" placeholder="PSN online ID" autocomplete="off" />
-        </label>
-        <button id="compare-button" type="submit" class="rounded-xl bg-electric px-6 py-3.5 font-bold transition hover:bg-cyan hover:text-ink disabled:cursor-wait disabled:opacity-60">Compare</button>
+      <div class="mx-auto mt-8 flex w-fit rounded-xl border border-white/10 bg-black/10 p-1" role="tablist" aria-label="Account calculation mode">
+        <button id="compare-mode" type="button" role="tab" aria-selected="true" class="rounded-lg bg-white/10 px-5 py-2.5 text-sm font-bold text-white">Compare</button>
+        <button id="combine-mode" type="button" role="tab" aria-selected="false" class="rounded-lg px-5 py-2.5 text-sm font-bold text-slate-400">Combine</button>
+      </div>
+
+      <form id="compare-form" class="glass mx-auto mt-5 max-w-4xl rounded-3xl border border-white/10 p-5 sm:p-6">
+        <div id="compare-fields" class="grid gap-4 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-2 block text-sm font-bold text-slate-300">First account</span>
+            <input id="player-one" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+" class="w-full rounded-xl border border-white/10 bg-ink px-4 py-3.5 outline-none focus:border-cyan" placeholder="PSN online ID" autocomplete="off" />
+          </label>
+          <label class="block">
+            <span class="mb-2 block text-sm font-bold text-slate-300">Second account</span>
+            <input id="player-two" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]+" class="w-full rounded-xl border border-white/10 bg-ink px-4 py-3.5 outline-none focus:border-cyan" placeholder="PSN online ID" autocomplete="off" />
+          </label>
+        </div>
+
+        <div id="combine-fields" class="hidden">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="font-bold">Profiles to combine</h2>
+              <p class="mt-1 text-xs text-slate-500">Add two or more PSN accounts.</p>
+            </div>
+            <button id="add-profile" type="button" class="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-slate-300 hover:border-cyan hover:text-white">+ Add profile</button>
+          </div>
+          <div id="combine-profiles" class="mt-4 grid gap-3 sm:grid-cols-2"></div>
+
+          <fieldset class="mt-6 border-t border-white/10 pt-5">
+            <legend class="px-2 text-sm font-bold">What should be combined?</legend>
+            <div class="mt-2 grid gap-3 sm:grid-cols-2">
+              <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
+                <input id="combine-full-account" type="checkbox" checked class="mt-0.5 h-4 w-4 accent-electric" />
+                <span><strong class="block text-sm">Full account playtime</strong><span class="mt-1 block text-xs text-slate-500">Sum every visible game across all profiles.</span></span>
+              </label>
+              <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 p-4">
+                <input id="combine-specific-games" type="checkbox" class="mt-0.5 h-4 w-4 accent-electric" />
+                <span><strong class="block text-sm">Specific games</strong><span class="mt-1 block text-xs text-slate-500">Sum matching titles across every profile.</span></span>
+              </label>
+            </div>
+            <label id="game-query-wrap" class="mt-4 hidden">
+              <span class="mb-2 block text-sm font-bold text-slate-300">Game titles</span>
+              <textarea id="game-queries" rows="3" class="w-full resize-y rounded-xl border border-white/10 bg-ink px-4 py-3 outline-none focus:border-cyan" placeholder="Black Ops II&#10;Another game"></textarea>
+              <span class="mt-2 block text-xs text-slate-500">One title per line. Partial titles work, so “Black Ops II” matches “Call of Duty: Black Ops II”.</span>
+            </label>
+          </fieldset>
+        </div>
+
+        <div class="mt-5 flex justify-end">
+          <button id="compare-button" type="submit" class="w-full rounded-xl bg-electric px-6 py-3.5 font-bold transition hover:bg-cyan hover:text-ink disabled:cursor-wait disabled:opacity-60 sm:w-auto">Compare accounts</button>
+        </div>
       </form>
       <p id="compare-message" class="mx-auto mt-4 min-h-6 max-w-4xl whitespace-pre-line text-center text-sm text-slate-400" role="status"></p>
 
@@ -194,6 +234,16 @@
             <span id="shared-game-count" class="text-sm text-slate-500"></span>
           </div>
           <div id="shared-games" class="mt-5 grid gap-3"></div>
+        </section>
+      </section>
+
+      <section id="combine-results" class="mt-10 hidden" aria-live="polite">
+        <div id="combine-summary" class="glass rounded-2xl border border-white/10 p-6 text-center"></div>
+        <div id="combined-accounts" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+        <section id="combined-games-section" class="mt-12 hidden">
+          <h2 class="text-2xl font-black">Combined games</h2>
+          <p class="mt-1 text-sm text-slate-400">Each result includes the matching playtime from every selected profile.</p>
+          <div id="combined-games" class="mt-5 grid gap-3"></div>
         </section>
       </section>
     </main>

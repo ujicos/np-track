@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   earnedTrophiesFirst,
+  findGamesByTitle,
   formatDuration,
   formatLongDuration,
   isShareFactoryTitle,
@@ -45,6 +46,17 @@ test("recognises Sony's Share Factory title variants", () => {
   assert.equal(isShareFactoryTitle("SHAREfactory™ Studio"), true);
   assert.equal(isShareFactoryTitle("Share Factory"), true);
   assert.equal(isShareFactoryTitle("Share Play"), false);
+});
+
+test("matches a shortened game title for multi-profile playtime", () => {
+  const games = [
+    { name: "Call of Duty®: Black Ops", playTimeSeconds: 10 },
+    { name: "Call of Duty®: Black Ops II", playTimeSeconds: 20 },
+    { name: "Call of Duty®: Black Ops 4", playTimeSeconds: 30 },
+  ];
+  assert.deepEqual(findGamesByTitle(games, "Black Ops II"), [games[1]]);
+  assert.deepEqual(findGamesByTitle(games, "Call of Duty Black Ops 4"), [games[2]]);
+  assert.deepEqual(findGamesByTitle(games, "Missing game"), []);
 });
 
 test("puts earned trophies before locked trophies without changing group order", () => {
